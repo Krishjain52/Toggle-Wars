@@ -1,0 +1,22 @@
+# Local / private
+.env
+.env.*
+!.env.example
+CLAUDE.md
+.claude/
+HACKATHON.md
+flagsmith-selfhost/
+
+# Node
+node_modules/
+dist/
+*.log
+
+# Python
+__pycache__/
+.venv/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
