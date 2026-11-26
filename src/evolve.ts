@@ -156,9 +156,8 @@ export async function runArena() {
       const inf = fallbackInference(champStats, f.flagsmith);
       if (!inf) continue;
       f.flagsmith.chanceToWin = inf.chanceToWin;
-      if (champStats.conversions > 0) f.flagsmith.lift = inf.lift;
       f.flagsmith.source = "fallback";
-      bus.log(`Champion had too few conversions for Flagsmith inference; ${f.spec.name}: ${pct(inf.chanceToWin)} chance to win (Flagsmith's formula on Flagsmith's counts)`);
+      bus.log(`Champion had too few conversions for Flagsmith inference; ${f.spec.name}: ${pct(inf.chanceToWin)} chance to win (two-proportion test on Flagsmith's counts)`);
     }
     const contenders = bus.state.fighters
       .filter((f) => !f.isChampion && (f.flagsmith?.chanceToWin ?? 0) >= winThreshold)

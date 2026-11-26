@@ -8,7 +8,16 @@ const ai = () => (client ??= new GoogleGenAI({ apiKey: config.gemini.apiKey() })
 /** Models that recently failed with overload; skipped for a minute. */
 const cooling = new Map<string, number>();
 
-/** Call the first healthy model in the chain, falling through on persistent overload. */
+const isTimeout = (e: unknown) => /abort|timed? ?out/i.test(`${(e as Error)?.name} ${(e as Error)?.message}`);
+const isOverload = (e: unknown) => {
+  const status = (e as { status?: number }).status ?? 0;
+  return status === 429 || status >= 500 || /fetch failed|ECONNRESET|ETIMEDOUT|socket hang up/i.test(String(e));
+};
+
+/**
+ * Call the first healthy model in the chain. Overload is retried with backoff,
+ * then the next model takes over; a timeout moves to the next model at once.
+ */
 async function generate(models: string[], request: (model: string) => Promise<{ text?: string }>) {
   const ordered = [...models].sort((a, b) => Number((cooling.get(a) ?? 0) > Date.now()) - Number((cooling.get(b) ?? 0) > Date.now()));
   let lastError: unknown;
@@ -17,8 +26,7 @@ async function generate(models: string[], request: (model: string) => Promise<{ 
       return await withRetry(() => request(model), 3);
     } catch (e) {
       lastError = e;
-      const status = (e as { status?: number }).status ?? 0;
-      if (status !== 429 && status < 500) throw e;
+      if (!isOverload(e) && !isTimeout(e)) throw e;
       cooling.set(model, Date.now() + 60_000);
     }
   }
@@ -36,6 +44,8 @@ export async function generateJson<T extends z.ZodType>(opts: {
   prompt: string;
   schema: T;
   temperature?: number;
+  /** Per-request timeout before failing over to the next model. */
+  timeoutMs?: number;
 }): Promise<z.infer<T>> {
   const jsonSchema = z.toJSONSchema(opts.schema, { target: "draft-7" });
   let prompt = opts.prompt;
@@ -49,7 +59,7 @@ export async function generateJson<T extends z.ZodType>(opts: {
         responseMimeType: "application/json",
         responseJsonSchema: jsonSchema,
         // A hung request fails over to the next model instead of stalling the arena.
-        httpOptions: { timeout: 60_000 },
+        httpOptions: { timeout: opts.timeoutMs ?? 60_000 },
       },
     }));
     const text = res.text ?? "";
@@ -71,9 +81,8 @@ async function withRetry<T>(fn: () => Promise<T>, attempts = 6): Promise<T> {
     try {
       return await fn();
     } catch (e) {
-      const status = (e as { status?: number }).status ?? 0;
-      const transient = status === 429 || status >= 500 || /fetch failed|ECONNRESET|ETIMEDOUT/i.test(String(e));
-      if (!transient || i >= attempts) throw e;
+      // Timeouts are not retried on the same model: the caller fails over instead.
+      if (!isOverload(e) || isTimeout(e) || i >= attempts) throw e;
       const delay = Math.min(30_000, 1000 * 2 ** (i - 1)) * (0.5 + Math.random());
       await new Promise((r) => setTimeout(r, delay));
     }

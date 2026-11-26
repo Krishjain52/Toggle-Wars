@@ -2,13 +2,13 @@
  * Fallback inference for one gap in Flagsmith's results.
  *
  * Flagsmith only reports chance-to-win when BOTH arms have ≥ 50 identities and
- * ≥ 5 conversions. When a terrible champion converts almost nobody, every
+ * ≥ 5 conversions. When a weak champion converts almost nobody, every
  * challenger is left without a verdict, which is exactly when the answer is
- * most obvious. This module is a line-for-line port of Flagsmith's own
- * `compare_to_control` (api/experimentation/stats.py: delta-method normal
- * approximation of relative lift), applied only to that case. When the control
- * has zero conversions, relative lift is undefined, so absolute rates are
- * compared instead (see compareAbsolute).
+ * most obvious. Flagsmith's relative-lift formula (delta method) is undefined
+ * at a zero control rate and extremely wide near it, so this fallback compares
+ * absolute conversion rates with the standard two-proportion normal
+ * approximation. It is used only for that case; everywhere else, Flagsmith's
+ * own numbers decide.
  */
 
 export interface ArmStats {
@@ -33,29 +33,6 @@ export function normalCdf(z: number): number {
   return z >= 0 ? 0.5 * (1 + erf) : 0.5 * (1 - erf);
 }
 
-/** Port of Flagsmith's compare_to_control for an occurrence metric (values are 0/1). */
-export function compareToControl(control: ArmStats, treatment: ArmStats): Inference | null {
-  const stats = (a: ArmStats) => {
-    const mean = a.conversions / a.visitors;
-    // sum_squares == sum for 0/1 values
-    const variance = Math.max(0, (a.conversions - a.conversions ** 2 / a.visitors) / (a.visitors - 1));
-    return { n: a.visitors, mean, variance };
-  };
-  if (control.visitors < 2 || treatment.visitors < 2) return null;
-  const c = stats(control);
-  const t = stats(treatment);
-  if (c.mean <= 0) return null;
-
-  const lift = (t.mean - c.mean) / c.mean;
-  const variance = t.variance / (t.n * c.mean ** 2) + (t.mean ** 2 * c.variance) / (c.n * c.mean ** 4);
-  const se = Math.sqrt(variance);
-  if (se === 0) {
-    const certainty = lift === 0 ? 0.5 : Number(lift > 0);
-    return { lift, ciLow: lift, ciHigh: lift, chanceToWin: certainty };
-  }
-  return { lift, ciLow: lift - Z_95 * se, ciHigh: lift + Z_95 * se, chanceToWin: normalCdf(lift / se) };
-}
-
 const MIN_IDENTITIES = 50;
 const MIN_CONVERSIONS = 5;
 
@@ -67,16 +44,13 @@ export function fallbackInference(control: ArmStats, treatment: ArmStats): Infer
   if (control.visitors < MIN_IDENTITIES || treatment.visitors < MIN_IDENTITIES) return null;
   if (treatment.conversions < MIN_CONVERSIONS) return null;
   if (control.conversions >= MIN_CONVERSIONS) return null; // Flagsmith would have answered
-  if (control.conversions > 0) return compareToControl(control, treatment);
   return compareAbsolute(control, treatment);
 }
 
 /**
- * Zero-conversion control: relative lift against 0 is undefined (and against a
- * tiny smoothed rate its variance explodes), so compare absolute rates with the
- * same normal approximation. The control rate uses a Haldane–Anscombe +0.5
- * correction so its variance is not zero. `lift` here is the absolute
- * difference in conversion rate.
+ * Two-proportion comparison of absolute conversion rates. The control rate uses
+ * a Haldane–Anscombe +0.5 correction so its variance is never zero. `lift` here
+ * is the absolute difference in conversion rate.
  */
 export function compareAbsolute(control: ArmStats, treatment: ArmStats): Inference {
   const pc = (control.conversions + 0.5) / (control.visitors + 1);

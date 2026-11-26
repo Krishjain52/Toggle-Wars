@@ -50,6 +50,8 @@ export async function breedChallengers(
     prompt,
     schema: z.object({ challengers: z.array(VariantSpec).length(count) }),
     temperature: 1,
+    // Designing three full pages is a large structured response.
+    timeoutMs: 120_000,
   });
   // Names must be unique: they become Flagsmith variant keys.
   const seen = new Set([champion.name]);

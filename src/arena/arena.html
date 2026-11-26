@@ -141,7 +141,7 @@ function fighterCard(f) {
   const fs = f.flagsmith
     ? `<div class="fs">Flagsmith: <b>${f.flagsmith.conversions}/${f.flagsmith.visitors}</b> converted ·
         ${f.isChampion ? "baseline" : f.flagsmith.chanceToWin == null ? "not enough data"
-          : `<span class="${f.flagsmith.chanceToWin >= 0.9 ? "win" : ""}"><b>${pct(f.flagsmith.chanceToWin)}</b> chance to beat champion${f.flagsmith.source === "fallback" ? " <span title='The champion had under 5 conversions, so Flagsmith withheld inference; computed with Flagsmith's own formula on Flagsmith's counts'>(fallback ⓘ)</span>" : ""}</span>`}</div>` : "";
+          : `<span class="${f.flagsmith.chanceToWin >= 0.9 ? "win" : ""}"><b>${pct(f.flagsmith.chanceToWin)}</b> chance to beat champion${f.flagsmith.source === "fallback" ? " <span title='The champion had under 5 conversions, so Flagsmith withheld inference; computed with a two-proportion test on Flagsmith's counts'>(fallback ⓘ)</span>" : ""}</span>`}</div>` : "";
   return `<div class="${cls}" data-key="${esc(f.key)}">
     <div class="preview"><iframe data-key="${esc(f.key)}" title="${esc(f.spec.name)} preview"></iframe>
       <div class="badge ${f.isChampion ? "gold" : ""}">${f.isChampion ? "👑 Champion" : "Challenger"}</div>${overlay}</div>
