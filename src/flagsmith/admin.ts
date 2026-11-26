@@ -13,10 +13,13 @@ export function cli(args: string[], input?: string): Promise<string> {
   return new Promise((res, rej) => {
     const child = execFile(
       BIN,
-      [...args, "--no-input"],
+      // --yes: the human already confirmed through the agent's approval gate.
+      [...args, "--no-input", "--yes"],
       { env: process.env, maxBuffer: 20 * 1024 * 1024 },
       (err, stdout, stderr) => {
-        if (err) rej(new Error(`flagsmith ${args.slice(0, 3).join(" ")} failed: ${(stderr || stdout || err.message).trim()}`));
+        // Some CLI refusals exit 0, so an "Error:" line counts as failure too.
+        const refused = /^Error:/m.test(stderr) || /^Error:/m.test(stdout);
+        if (err || refused) rej(new Error(`flagsmith ${args.slice(0, 3).join(" ")} failed: ${(stderr || stdout || err?.message || "").trim().split("\n")[0]}`));
         else res(stdout);
       },
     );
@@ -63,7 +66,7 @@ export async function createArenaFlag(
   return getFeature(name);
 }
 
-export const deleteFeature = (name: string) => cli(["feature", "delete", name, "--yes"]);
+export const deleteFeature = (name: string) => cli(["feature", "delete", name]);
 
 /** Archive instead of delete: the generation's experiment history stays browsable in Flagsmith. */
 export const archiveFeature = (name: string) => cli(["feature", "update", name, "--archive"]);

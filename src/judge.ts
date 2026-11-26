@@ -43,7 +43,11 @@ function draw(visitorId: string): number {
  * calibrated likelihood; a seeded draw turns it into the actual decision, which
  * keeps conversion rates realistic and outcomes naturally noisy.
  */
-export async function judgeBatch(pageText: string, visitors: Visitor[]): Promise<Verdict[]> {
+export async function judgeBatch(
+  pageText: string,
+  visitors: Visitor[],
+  models: string[] = config.gemini.visitorModels,
+): Promise<Verdict[]> {
   const prompt = [
     `PRODUCT: ${PRODUCT.name}`,
     `THE PAGE EACH VISITOR SEES:\n"""\n${pageText}\n"""`,
@@ -52,7 +56,7 @@ export async function judgeBatch(pageText: string, visitors: Visitor[]): Promise
   ].join("\n\n");
 
   const { verdicts } = await generateJson({
-    models: config.gemini.visitorModels,
+    models,
     system: SYSTEM,
     prompt,
     schema: Verdicts,

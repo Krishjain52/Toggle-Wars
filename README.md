@@ -38,6 +38,14 @@ It turns one goal ("get more trial sign-ups") into a self-running evolution loop
 
 They are a **pre-test, not a replacement for users**. Real traffic is precious: you do not want to burn two weeks of it on a headline that a sceptical engineer would reject in two seconds. Toggle Wars weeds out weak ideas in minutes, and the survivors then run against real users through the *same* flags and experiments, with no code changes. The pipeline is identical for real traffic; only the source of events changes.
 
+## Statistics and fairness
+
+- **Flagsmith decides.** Winners come from the Bayesian results Flagsmith computes for each experiment (`chance_to_win`, lift, credible interval, sample ratio mismatch check). A challenger needs ≥ 90% chance to win to take the title.
+- **One documented gap is filled, and labelled.** Flagsmith only reports inference when *both* arms have ≥ 50 identities and ≥ 5 conversions. A weak champion often converts fewer than 5 visitors, which leaves every challenger without a verdict exactly when the result is most obvious (e.g. 2/114 vs 15/95). Only in that case, Toggle Wars runs a two-proportion test on **Flagsmith's own counts** and marks the result as a fallback in the arena. The challenger still needs ≥ 50 visitors and ≥ 5 conversions. See [`src/stats.ts`](src/stats.ts).
+- **Same judge for every fighter.** One Gemini model judges every visitor in a generation, so no page is scored by a more generous model. If that model stays overloaded, the fallback is logged in the arena.
+- **Realistic and reproducible.** Visitors return a calibrated *likelihood* of signing up (most pages convert 2–15%), and a seeded draw makes the decision. The same `SEED` replays the same crowd.
+- **Expect noise.** Each generation sees a fresh crowd of ~100 visitors per page, so the same page can score differently between rounds, just like real A/B tests. That is why the bar to dethrone a champion is high.
+
 ## How Flagsmith is used
 
 | Flagsmith feature | Where | What it does in Toggle Wars |
@@ -111,6 +119,8 @@ src/
   variant.ts          page spec schema and renderer
   seed.ts             demo product and the generation-0 page
   approval.ts         human-in-the-loop gate (arena button or terminal)
+  stats.ts            fallback inference when Flagsmith withholds results
+  tools/              diagnostics: Gemini model health, event delivery, manual champion ship
 ```
 
 ## Use it on your own product

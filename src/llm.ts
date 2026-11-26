@@ -14,6 +14,11 @@ const isOverload = (e: unknown) => {
   return status === 429 || status >= 500 || /fetch failed|ECONNRESET|ETIMEDOUT|socket hang up/i.test(String(e));
 };
 
+/** The first model in the chain that is not cooling down after an overload. */
+export function healthiest(models: string[]): string {
+  return models.find((m) => (cooling.get(m) ?? 0) <= Date.now()) ?? models[0]!;
+}
+
 /**
  * Call the first healthy model in the chain. Overload is retried with backoff,
  * then the next model takes over; a timeout moves to the next model at once.

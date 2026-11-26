@@ -3,7 +3,7 @@ import { bus } from "./bus.js";
 import { config } from "./config.js";
 import { convert, expose } from "./flagsmith/sdk.js";
 import { judgeBatch } from "./judge.js";
-import { pool } from "./llm.js";
+import { healthiest, pool } from "./llm.js";
 import type { Visitor } from "./personas.js";
 import { PRODUCT } from "./seed.js";
 import { parseVariant, renderText } from "./variant.js";
@@ -47,10 +47,17 @@ export async function runSwarm(sdk: Flagsmith, flagName: string, visitors: Visit
   // Interleave fighters so the arena fills evenly instead of one fighter at a time.
   batches.sort((a, b) => a.visitors[0]!.id.localeCompare(b.visitors[0]!.id));
 
+  // Fairness: one model judges every fighter in a generation, so no fighter is
+  // scored by a more generous model. Only after three failed rounds on that
+  // model do the remaining batches fall back to the full chain (and say so).
   // Exposed visitors must all be judged: a skipped batch would count as
-  // bounces and unfairly penalise that fighter. Failed batches are retried.
+  // bounces and unfairly penalise that fighter, so failed batches are retried.
+  const judgeModel = healthiest(config.gemini.visitorModels);
+  bus.log(`All visitors this generation are judged by ${judgeModel}`);
   let pending = batches;
   for (let round = 1; pending.length && round <= 4; round++) {
+    const models = round < 4 ? [judgeModel] : config.gemini.visitorModels;
+    if (round === 4) bus.log(`⚠️ ${judgeModel} stayed overloaded; ${pending.length} batches fall back to other models`);
     if (round > 1) {
       bus.log(`Retrying ${pending.length} visitor batches in 20s (Gemini overloaded)…`);
       await new Promise((r) => setTimeout(r, 20_000));
@@ -58,7 +65,7 @@ export async function runSwarm(sdk: Flagsmith, flagName: string, visitors: Visit
     const failedBatches: typeof batches = [];
     await pool(pending, config.arena.concurrency, async (batch) => {
       try {
-        record(batch, await judgeBatch(batch.page, batch.visitors));
+        record(batch, await judgeBatch(batch.page, batch.visitors, models));
       } catch {
         failedBatches.push(batch);
       }

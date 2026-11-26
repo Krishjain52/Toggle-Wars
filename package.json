@@ -11,6 +11,8 @@
     "arena": "tsx src/arena/server.ts",
     "evolve": "tsx src/evolve.ts",
     "preview": "tsx src/preview.ts",
+    "doctor": "tsx src/tools/ping-models.ts",
+    "ship": "tsx src/tools/ship-champion.ts",
     "typecheck": "tsc --noEmit"
   },
   "license": "MIT",
