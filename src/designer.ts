@@ -45,7 +45,7 @@ export async function breedChallengers(
   ].join("\n\n");
 
   const { challengers } = await generateJson({
-    model: config.gemini.designerModel,
+    models: config.gemini.designerModels,
     system: SYSTEM,
     prompt,
     schema: z.object({ challengers: z.array(VariantSpec).length(count) }),

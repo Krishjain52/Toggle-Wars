@@ -1,0 +1,226 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Toggle Wars Arena</title>
+<style>
+  :root{
+    --bg:#0b0d12;--panel:#12151d;--panel2:#181c26;--line:#262b38;--fg:#e8eaf0;--dim:#8a91a5;
+    --gold:#f5c542;--green:#3ddc84;--red:#ff5d5d;--blue:#5b8cff;--violet:#a970ff;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(1200px 600px at 50% -200px,#1b2140 0%,var(--bg) 60%) fixed,var(--bg);
+    color:var(--fg);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;min-height:100vh}
+  .app{max-width:1500px;margin:0 auto;padding:20px 20px 40px}
+  header{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+  .logo{font-weight:900;font-size:26px;letter-spacing:.06em}
+  .logo span{color:var(--gold)}
+  .gen{background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-weight:700}
+  .gen b{color:var(--gold)}
+  .spacer{flex:1}
+  .btn{background:var(--gold);color:#111;border:0;border-radius:10px;padding:10px 18px;font-weight:800;cursor:pointer;font-size:14px}
+  .btn:disabled{opacity:.4;cursor:default}
+  .btn.ghost{background:transparent;color:var(--fg);border:1px solid var(--line)}
+  .btn.red{background:var(--red);color:#fff}
+  a{color:var(--blue)}
+  .phase{margin:16px 0;padding:12px 16px;border-radius:12px;background:var(--panel);border:1px solid var(--line);
+    display:flex;gap:12px;align-items:center;font-size:15px}
+  .dot{width:10px;height:10px;border-radius:50%;background:var(--dim);flex:none}
+  .phase[data-p=battling] .dot,.phase[data-p=analysing] .dot,.phase[data-p=breeding] .dot,.phase[data-p=deploying] .dot{background:var(--green);animation:pulse 1s infinite}
+  .phase[data-p=verdict] .dot,.phase[data-p=done] .dot{background:var(--gold)}
+  .phase[data-p=error] .dot{background:var(--red)}
+  .phase[data-p=awaiting-approval] .dot{background:var(--gold);animation:pulse .6s infinite}
+  @keyframes pulse{50%{opacity:.25}}
+  .main{display:grid;grid-template-columns:1fr 340px;gap:18px}
+  @media (max-width:1100px){.main{grid-template-columns:1fr}}
+  .fighters{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:16px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;overflow:hidden;position:relative;transition:transform .4s,opacity .4s,border-color .4s}
+  .card.champ{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold),0 0 40px -10px var(--gold)}
+  .card.defeated{opacity:.45;transform:scale(.97)}
+  .card.winner,.card.defended{border-color:var(--green);box-shadow:0 0 0 2px var(--green),0 0 50px -8px var(--green);transform:scale(1.02)}
+  .preview{height:190px;overflow:hidden;position:relative;background:#fff;border-bottom:1px solid var(--line)}
+  .preview iframe{width:250%;height:250%;border:0;transform:scale(.4);transform-origin:0 0;pointer-events:none}
+  .badge{position:absolute;top:10px;left:10px;background:rgba(0,0,0,.75);color:#fff;font-weight:800;font-size:11px;
+    padding:4px 8px;border-radius:6px;letter-spacing:.05em;text-transform:uppercase}
+  .badge.gold{background:var(--gold);color:#111}
+  .ko{position:absolute;inset:0;display:grid;place-items:center;font-size:44px;font-weight:900;letter-spacing:.1em;
+    color:var(--red);text-shadow:0 2px 20px #000;background:rgba(11,13,18,.35)}
+  .ko.win{color:var(--green)}
+  .body{padding:14px}
+  .name{font-weight:800;font-size:17px;display:flex;align-items:center;gap:8px}
+  .strategy{color:var(--dim);font-size:12.5px;margin:4px 0 12px;min-height:36px}
+  .hp{height:12px;background:var(--panel2);border-radius:99px;overflow:hidden;border:1px solid var(--line)}
+  .hp i{display:block;height:100%;background:linear-gradient(90deg,var(--blue),var(--violet));border-radius:99px;transition:width .5s}
+  .card.champ .hp i{background:linear-gradient(90deg,#d99b00,var(--gold))}
+  .stats{display:flex;justify-content:space-between;margin-top:8px;font-variant-numeric:tabular-nums;color:var(--dim);font-size:12.5px}
+  .stats b{color:var(--fg);font-size:15px}
+  .fs{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);font-size:12.5px;color:var(--dim)}
+  .fs b{color:var(--fg)}
+  .fs .win{color:var(--green)}
+  aside{display:flex;flex-direction:column;gap:18px;min-width:0}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px}
+  .panel h3{margin:0 0 10px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
+  .feed{display:flex;flex-direction:column;gap:8px;max-height:430px;overflow:auto}
+  .bubble{background:var(--panel2);border-radius:12px;padding:8px 10px;border-left:3px solid var(--red);animation:pop .3s}
+  .bubble.yes{border-left-color:var(--green)}
+  .bubble small{display:block;color:var(--dim);font-size:11px;margin-bottom:2px}
+  @keyframes pop{from{transform:translateY(6px);opacity:0}}
+  .log{font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--dim);max-height:200px;overflow:auto;white-space:pre-wrap}
+  .lineage{display:flex;gap:14px;overflow-x:auto;padding-bottom:6px}
+  .gen-card{flex:none;width:220px;background:var(--panel2);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .gen-card .preview{height:120px}
+  .gen-card .body{padding:10px;font-size:12.5px}
+  .empty{color:var(--dim);text-align:center;padding:50px 20px;border:1px dashed var(--line);border-radius:16px}
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:grid;place-items:center;padding:20px;z-index:10}
+  .modal .box{background:var(--panel);border:1px solid var(--gold);border-radius:16px;max-width:620px;width:100%;padding:22px;box-shadow:0 20px 80px #000}
+  .modal h2{margin:0 0 6px;font-size:19px}
+  .modal ul{padding-left:18px;color:var(--dim);margin:12px 0 18px}
+  .modal li{margin:5px 0}
+  .modal .row{display:flex;gap:10px;justify-content:flex-end}
+  h2.section{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin:26px 0 10px}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <div class="logo">TOGGLE <span>WARS</span></div>
+    <div class="gen" id="gen">Generation <b>–</b></div>
+    <div id="product" style="color:var(--dim)"></div>
+    <div class="spacer"></div>
+    <a id="expLink" target="_blank" rel="noopener" hidden>Open experiment in Flagsmith ↗</a>
+    <a href="/live" target="_blank" rel="noopener">Live landing page ↗</a>
+    <button class="btn" id="startBtn">⚔️ Start evolution</button>
+  </header>
+
+  <div class="phase" id="phase" data-p="idle"><span class="dot"></span><span id="phaseText">Ready. Press Start to breed the first generation of challengers.</span></div>
+
+  <div class="main">
+    <section>
+      <div class="fighters" id="fighters"><div class="empty">No fighters yet. The reigning champion and its challengers appear here.</div></div>
+      <h2 class="section">Champion lineage</h2>
+      <div class="lineage" id="lineage"><div class="empty" style="width:100%;padding:24px">Each generation's champion is recorded here.</div></div>
+    </section>
+    <aside>
+      <div class="panel"><h3>Visitor thoughts</h3><div class="feed" id="feed"></div></div>
+      <div class="panel"><h3>Agent log</h3><div class="log" id="log"></div></div>
+    </aside>
+  </div>
+</div>
+
+<div class="modal" id="modal" hidden>
+  <div class="box">
+    <div style="color:var(--gold);font-weight:800;font-size:12px;letter-spacing:.12em">⚑ APPROVAL NEEDED</div>
+    <h2 id="mTitle"></h2>
+    <ul id="mDetails"></ul>
+    <div class="row">
+      <button class="btn ghost" id="reject">Reject</button>
+      <button class="btn" id="approve">Approve & apply</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" })[c]);
+const pct = (x) => (x * 100).toFixed(1) + "%";
+let state = null;
+let shownApproval = null;
+let lastFightersSig = "";
+let lastRoundsCount = 0;
+const frames = new Map(); // fighter key -> last rendered html, so iframes don't reload every frame
+
+function fighterCard(f) {
+  const live = f.visitors ? f.signups / f.visitors : 0;
+  const rate = f.flagsmith ? f.flagsmith.rate : live;
+  const max = Math.max(0.0001, ...state.fighters.map((x) => x.flagsmith ? x.flagsmith.rate : (x.visitors ? x.signups / x.visitors : 0)));
+  const cls = ["card", f.isChampion ? "champ" : "", f.status].join(" ");
+  const overlay = f.status === "defeated" ? `<div class="ko">K.O.</div>`
+    : f.status === "winner" ? `<div class="ko win">WINNER</div>`
+    : f.status === "defended" ? `<div class="ko win">DEFENDED</div>` : "";
+  const fs = f.flagsmith
+    ? `<div class="fs">Flagsmith: <b>${f.flagsmith.conversions}/${f.flagsmith.visitors}</b> converted ·
+        ${f.isChampion ? "baseline" : f.flagsmith.chanceToWin == null ? "not enough data"
+          : `<span class="${f.flagsmith.chanceToWin >= 0.9 ? "win" : ""}"><b>${pct(f.flagsmith.chanceToWin)}</b> chance to beat champion</span>`}</div>` : "";
+  return `<div class="${cls}" data-key="${esc(f.key)}">
+    <div class="preview"><iframe data-key="${esc(f.key)}" title="${esc(f.spec.name)} preview"></iframe>
+      <div class="badge ${f.isChampion ? "gold" : ""}">${f.isChampion ? "👑 Champion" : "Challenger"}</div>${overlay}</div>
+    <div class="body">
+      <div class="name">${esc(f.spec.name)}</div>
+      <div class="strategy">${esc(f.spec.strategy)}</div>
+      <div class="hp"><i style="width:${(rate / max) * 100}%"></i></div>
+      <div class="stats"><span><b>${pct(rate)}</b> sign-up rate</span><span>${f.signups}/${f.visitors} visitors</span></div>
+      ${fs}
+    </div></div>`;
+}
+
+function render() {
+  const s = state;
+  $("gen").innerHTML = `Generation <b>${s.generation || "–"}</b> / ${s.totalGenerations || "–"}`;
+  $("product").textContent = s.product ? `${s.product} · ${s.goal}` : "";
+  $("phase").dataset.p = s.phase;
+  if (s.phaseDetail) $("phaseText").textContent = s.phaseDetail;
+  $("startBtn").disabled = !["idle", "done", "error"].includes(s.phase);
+  $("expLink").hidden = !s.experimentUrl;
+  if (s.experimentUrl) $("expLink").href = s.experimentUrl;
+
+  const sig = JSON.stringify(s.fighters.map((f) => [f.key, f.visitors, f.signups, f.status, f.flagsmith, f.isChampion]));
+  if (s.fighters.length && sig !== lastFightersSig) {
+    lastFightersSig = sig;
+    // Keep existing preview iframes alive across re-renders so they don't reload and flicker.
+    const old = new Map([...document.querySelectorAll("#fighters iframe")].map((el) => [el.dataset.key, el]));
+    $("fighters").innerHTML = s.fighters.map(fighterCard).join("");
+    for (const f of s.fighters) {
+      const slot = document.querySelector(`#fighters iframe[data-key="${CSS.escape(f.key)}"]`);
+      const prev = old.get(f.key);
+      if (prev && frames.get(f.key) === f.html) slot.replaceWith(prev);
+      else { slot.srcdoc = `<body style="margin:0">${f.html}</body>`; frames.set(f.key, f.html); }
+    }
+  } else if (!s.fighters.length && lastFightersSig) {
+    lastFightersSig = "";
+    frames.clear();
+    $("fighters").innerHTML = `<div class="empty">Breeding the next generation…</div>`;
+  }
+
+  $("feed").innerHTML = s.thoughts.slice().reverse().map((t) => {
+    const fighter = s.fighters.find((f) => f.key === t.fighterKey);
+    return `<div class="bubble ${t.signup ? "yes" : ""}"><small>${t.signup ? "✅ signed up" : "❌ left"} · ${esc(t.persona)} on ${esc(fighter?.spec.name ?? t.fighterKey)}</small>${esc(t.text)}</div>`;
+  }).join("");
+
+  const log = $("log");
+  log.textContent = s.log.slice(-60).map((l) => `${l.at.slice(11, 19)}  ${l.text}`).join("\n");
+  log.scrollTop = log.scrollHeight;
+
+  if (s.rounds.length && s.rounds.length !== lastRoundsCount) {
+    lastRoundsCount = s.rounds.length;
+    $("lineage").innerHTML = s.rounds.map((r) => `<div class="gen-card">
+      <div class="preview"><iframe srcdoc="${esc(`<body style="margin:0">${r.html}</body>`)}" title="Generation ${r.generation} champion"></iframe></div>
+      <div class="body"><b>Gen ${r.generation}: ${esc(r.winner)}</b><br>
+        <span style="color:var(--dim)">${r.dethroned ? `dethroned ${esc(r.champion)}` : "defended the title"} · ${pct(r.winnerRate)}</span><br>
+        <a href="${esc(r.experimentUrl)}" target="_blank" rel="noopener">Flagsmith experiment ↗</a></div></div>`).join("");
+  }
+
+  if (s.approval && shownApproval !== s.approval.id) {
+    shownApproval = s.approval.id;
+    $("mTitle").textContent = s.approval.title;
+    $("mDetails").innerHTML = s.approval.details.map((d) => `<li>${esc(d)}</li>`).join("");
+    $("modal").hidden = false;
+  }
+  if (!s.approval) { $("modal").hidden = true; shownApproval = null; }
+}
+
+async function answer(ok) {
+  if (!state?.approval) return;
+  $("approve").disabled = $("reject").disabled = true;
+  await fetch("/api/approval", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: state.approval.id, ok }) });
+  $("approve").disabled = $("reject").disabled = false;
+}
+$("approve").onclick = () => answer(true);
+$("reject").onclick = () => answer(false);
+$("startBtn").onclick = () => fetch("/api/start", { method: "POST" });
+
+const es = new EventSource("/events");
+es.onmessage = (e) => { state = JSON.parse(e.data); render(); };
+</script>
+</body>
+</html>

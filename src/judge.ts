@@ -30,7 +30,7 @@ export async function judgeBatch(pageText: string, visitors: Visitor[]): Promise
   ].join("\n\n");
 
   const { verdicts } = await generateJson({
-    model: config.gemini.visitorModel,
+    models: config.gemini.visitorModels,
     system: SYSTEM,
     prompt,
     schema: Verdicts,

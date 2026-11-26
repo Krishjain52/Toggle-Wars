@@ -6,6 +6,9 @@ function required(name: string): string {
   return v;
 }
 
+const list = (name: string, fallback: string[]) =>
+  process.env[name]?.split(",").map((m) => m.trim()).filter(Boolean) ?? fallback;
+
 const int = (name: string, fallback: number) => {
   const n = Number(process.env[name]);
   return Number.isFinite(n) && n > 0 ? Math.floor(n) : fallback;
@@ -14,8 +17,9 @@ const int = (name: string, fallback: number) => {
 export const config = {
   gemini: {
     apiKey: () => required("GEMINI_API_KEY"),
-    designerModel: process.env.DESIGNER_MODEL ?? "gemini-3.8-flash",
-    visitorModel: process.env.VISITOR_MODEL ?? "gemini-3.5-flash-lite",
+    /** Tried in order; the next model takes over when one is overloaded. */
+    designerModels: list("DESIGNER_MODELS", ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-4-hydrogen"]),
+    visitorModels: list("VISITOR_MODELS", ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.6-flash"]),
   },
   flagsmith: {
     /** Client-side environment key: used by the SDK and in Admin API paths. */
@@ -29,7 +33,7 @@ export const config = {
     generations: int("GENERATIONS", 3),
     challengers: int("CHALLENGERS", 3),
     /** Flagsmith shows results only after 50 identities per variation. */
-    visitorsPerGeneration: int("VISITORS_PER_GENERATION", 240),
+    visitorsPerGeneration: int("VISITORS_PER_GENERATION", 400),
     visitorsPerLlmCall: int("VISITORS_PER_LLM_CALL", 12),
     concurrency: int("LLM_CONCURRENCY", 6),
     /** Win probability a challenger needs to dethrone the champion. */
