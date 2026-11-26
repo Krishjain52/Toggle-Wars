@@ -16,10 +16,18 @@ import { parseVariant, renderText } from "./variant.js";
  * The page text comes from the flag value Flagsmith served, not from local state.
  */
 export async function runSwarm(sdk: Flagsmith, flagName: string, visitors: Visitor[]) {
-  // 1. Exposures: let Flagsmith bucket everyone.
-  const exposures = await pool(visitors, 10, async (v) => ({ visitor: v, exposure: await expose(sdk, flagName, v.id) }));
-  const enrolled = exposures.filter((e) => e.exposure.inExperiment);
-  bus.log(`Flagsmith bucketed ${enrolled.length}/${visitors.length} visitors into the experiment`);
+  // 1. Exposures: let Flagsmith bucket everyone. Visitors who hit an edge node
+  //    that has not seen the experiment yet are retried a few times.
+  const enrolled: { visitor: Visitor; exposure: Awaited<ReturnType<typeof expose>> }[] = [];
+  let waiting = visitors;
+  for (let round = 0; waiting.length && round < 5; round++) {
+    if (round) await new Promise((r) => setTimeout(r, 5000));
+    const results = await pool(waiting, 10, async (v) => ({ visitor: v, exposure: await expose(sdk, flagName, v.id) }));
+    enrolled.push(...results.filter((e) => e.exposure.inExperiment));
+    waiting = results.filter((e) => !e.exposure.inExperiment).map((e) => e.visitor);
+  }
+  bus.log(`Flagsmith enrolled ${enrolled.length}/${visitors.length} visitors in the experiment`);
+  if (enrolled.length < visitors.length * 0.5) throw new Error("Most visitors were not enrolled; is the experiment running?");
 
   // 2. Group by served page, then judge in batches (one LLM call per batch).
   const byKey = new Map<string, { page: string; visitors: Visitor[] }>();

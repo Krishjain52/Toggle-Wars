@@ -24,14 +24,35 @@ export interface Exposure {
   inExperiment: boolean;
 }
 
+type ExperimentAware = { value: unknown; variant?: string; experiment?: { id?: number; inExperiment?: boolean } };
+
 export async function expose(sdk: Flagsmith, flagName: string, visitorId: string): Promise<Exposure> {
-  const flag = await sdk.getExperimentFlag(flagName, visitorId);
-  const f = flag as { value: unknown; variant?: string; experiment?: { inExperiment?: boolean } };
+  const f = (await sdk.getExperimentFlag(flagName, visitorId)) as ExperimentAware;
   return {
     variantKey: f.variant ?? "control",
     value: String(f.value ?? ""),
-    inExperiment: f.experiment?.inExperiment ?? true,
+    // No experiment metadata means Flagsmith did not enrol this identity and recorded no exposure.
+    inExperiment: f.experiment?.inExperiment === true,
   };
+}
+
+/**
+ * A freshly started experiment takes a few seconds to reach Flagsmith's edge.
+ * Identities evaluated before then get the flag without the experiment, so no
+ * exposure is recorded. Probe with side-effect-free evaluations until several
+ * consecutive fresh identities see the experiment.
+ */
+export async function waitUntilLive(sdk: Flagsmith, flagName: string, experimentId: number, timeoutMs = 180_000) {
+  const deadline = Date.now() + timeoutMs;
+  let streak = 0;
+  for (let i = 0; Date.now() < deadline; i++) {
+    const flags = await sdk.getIdentityFlags(`edge-probe-${flagName}-${i}`);
+    const f = flags.getFlag(flagName) as unknown as ExperimentAware;
+    streak = f.experiment?.id === experimentId ? streak + 1 : 0;
+    if (streak >= 3) return;
+    await new Promise((r) => setTimeout(r, streak ? 1000 : 3000));
+  }
+  throw new Error(`Experiment ${experimentId} did not reach the Flagsmith edge within ${timeoutMs / 1000}s`);
 }
 
 export const SIGNUP_EVENT = "arena_signup";

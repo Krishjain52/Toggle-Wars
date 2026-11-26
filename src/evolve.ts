@@ -3,7 +3,7 @@ import { bus, type Fighter } from "./bus.js";
 import { config } from "./config.js";
 import { breedChallengers, type GenerationFeedback } from "./designer.js";
 import * as fs from "./flagsmith/admin.js";
-import { createSdk, SIGNUP_EVENT } from "./flagsmith/sdk.js";
+import { createSdk, SIGNUP_EVENT, waitUntilLive } from "./flagsmith/sdk.js";
 import { spawnVisitors } from "./personas.js";
 import { GENESIS, PRODUCT } from "./seed.js";
 import { runSwarm } from "./swarm.js";
@@ -48,8 +48,10 @@ async function awaitResults(expId: number, metricId: number, expected: number) {
       if (seen >= expected * 0.95) return r;
     }
   }
-  if (best) return best;
-  throw new Error("Flagsmith results did not arrive in time");
+  // Never crown a winner on missing data: an incomplete analysis stops the run.
+  const seen = best?.variants.reduce((n, v) => n + v.visitors, 0) ?? 0;
+  if (best && seen >= expected * 0.8) return best;
+  throw new Error(`Flagsmith analysed only ${seen}/${expected} visitors in time; not deciding a winner on incomplete data`);
 }
 
 function feedbackFrom(fighters: Fighter[]): GenerationFeedback {
@@ -128,6 +130,8 @@ export async function runArena() {
       metricId: metric.id,
     });
     await fs.startExperiment(exp.id);
+    bus.phase("deploying", "Waiting for the experiment to reach Flagsmith's edge…");
+    await waitUntilLive(sdk, flagName, exp.id);
     const url = fs.experimentUrl(project, exp.id);
     bus.update({ flagName, experimentUrl: url });
     bus.log(`Experiment ${exp.id} is running: ${url}`);
