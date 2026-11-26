@@ -18,7 +18,7 @@ export const config = {
   gemini: {
     apiKey: () => required("GEMINI_API_KEY"),
     /** Tried in order; the next model takes over when one is overloaded. */
-    designerModels: list("DESIGNER_MODELS", ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-4-hydrogen"]),
+    designerModels: list("DESIGNER_MODELS", ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-4-hydrogen", "gemini-3.5-flash-lite"]),
     visitorModels: list("VISITOR_MODELS", ["gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.6-flash"]),
   },
   flagsmith: {

@@ -14,6 +14,19 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const pct = (x: number) => `${(x * 100).toFixed(1)}%`;
 const slug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_|_$/g, "").slice(0, 40) || "fighter";
 
+/** Retry a whole step when every model is overloaded, rather than failing the run. */
+async function patiently<T>(what: string, fn: () => Promise<T>, tries = 6): Promise<T> {
+  for (let i = 1; ; i++) {
+    try {
+      return await fn();
+    } catch (e) {
+      if (i >= tries) throw e;
+      bus.log(`Gemini is overloaded while ${what}; retrying in 30s (attempt ${i + 1}/${tries})`);
+      await sleep(30_000);
+    }
+  }
+}
+
 /** The production flag the real landing page reads. The champion ships here. */
 export const PRODUCTION_FLAG = "landing_page";
 
@@ -87,7 +100,7 @@ export async function runArena() {
 
     // 1. Breed challengers from the champion and last round's visitor feedback.
     bus.phase("breeding", `Generation ${gen}: designing challengers for "${champion.name}"…`);
-    const challengers = await breedChallengers(champion, gen, feedback);
+    const challengers = await patiently("designing challengers", () => breedChallengers(champion, gen, feedback));
     const used = new Set(["control"]);
     const keyed = challengers.map((spec) => {
       let key = slug(spec.name);

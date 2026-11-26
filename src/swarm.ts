@@ -47,16 +47,27 @@ export async function runSwarm(sdk: Flagsmith, flagName: string, visitors: Visit
   // Interleave fighters so the arena fills evenly instead of one fighter at a time.
   batches.sort((a, b) => a.visitors[0]!.id.localeCompare(b.visitors[0]!.id));
 
-  let failed = 0;
-  await pool(batches, config.arena.concurrency, async (batch) => {
-    let verdicts;
-    try {
-      verdicts = await judgeBatch(batch.page, batch.visitors);
-    } catch (e) {
-      failed += batch.visitors.length;
-      bus.log(`A visitor batch failed (${(e as Error).message.slice(0, 120)}); counted as bounces`);
-      return;
+  // Exposed visitors must all be judged: a skipped batch would count as
+  // bounces and unfairly penalise that fighter. Failed batches are retried.
+  let pending = batches;
+  for (let round = 1; pending.length && round <= 4; round++) {
+    if (round > 1) {
+      bus.log(`Retrying ${pending.length} visitor batches in 20s (Gemini overloaded)…`);
+      await new Promise((r) => setTimeout(r, 20_000));
     }
+    const failedBatches: typeof batches = [];
+    await pool(pending, config.arena.concurrency, async (batch) => {
+      try {
+        record(batch, await judgeBatch(batch.page, batch.visitors));
+      } catch {
+        failedBatches.push(batch);
+      }
+    });
+    pending = failedBatches;
+  }
+  const failed = pending.reduce((n, b) => n + b.visitors.length, 0);
+
+  function record(batch: (typeof batches)[number], verdicts: Awaited<ReturnType<typeof judgeBatch>>) {
     const fighter = bus.state.fighters.find((f) => f.key === batch.key);
     for (const verdict of verdicts) {
       // 3. Conversions go to Flagsmith; the arena mirrors them live.
@@ -68,8 +79,8 @@ export async function runSwarm(sdk: Flagsmith, flagName: string, visitors: Visit
       const persona = batch.visitors.find((v) => v.id === verdict.visitorId)?.archetype.label ?? "Visitor";
       bus.thought({ fighterKey: batch.key, persona, signup: verdict.signup, text: verdict.thought });
     }
-  });
+  }
   await sdk.flushEvents();
-  if (failed) bus.log(`${failed} visitors could not be simulated`);
+  if (failed) bus.log(`⚠️ ${failed} visitors could not be simulated after retries; they count as bounces`);
   return { enrolled: enrolled.length, failed };
 }
