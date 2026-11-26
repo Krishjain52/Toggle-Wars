@@ -34,7 +34,7 @@ export const config = {
     challengers: int("CHALLENGERS", 3),
     /** Flagsmith shows results only after 50 identities per variation. */
     visitorsPerGeneration: int("VISITORS_PER_GENERATION", 400),
-    visitorsPerLlmCall: int("VISITORS_PER_LLM_CALL", 12),
+    visitorsPerLlmCall: int("VISITORS_PER_LLM_CALL", 25),
     concurrency: int("LLM_CONCURRENCY", 6),
     /** Win probability a challenger needs to dethrone the champion. */
     winThreshold: Number(process.env.WIN_THRESHOLD ?? 0.9),

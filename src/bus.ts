@@ -10,7 +10,11 @@ export interface Fighter {
   visitors: number;
   signups: number;
   /** Flagsmith's verdict once results are computed. */
-  flagsmith?: { visitors: number; conversions: number; rate: number; chanceToWin: number | null; lift: number | null };
+  flagsmith?: {
+    visitors: number; conversions: number; rate: number; chanceToWin: number | null; lift: number | null;
+    /** "flagsmith" = Flagsmith's own inference; "fallback" = Beta posterior on Flagsmith's counts. */
+    source: "flagsmith" | "fallback";
+  };
   status: "fighting" | "winner" | "defeated" | "defended";
 }
 

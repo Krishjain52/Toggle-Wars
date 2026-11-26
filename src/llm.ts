@@ -48,6 +48,8 @@ export async function generateJson<T extends z.ZodType>(opts: {
         temperature: opts.temperature ?? 0.9,
         responseMimeType: "application/json",
         responseJsonSchema: jsonSchema,
+        // A hung request fails over to the next model instead of stalling the arena.
+        httpOptions: { timeout: 60_000 },
       },
     }));
     const text = res.text ?? "";

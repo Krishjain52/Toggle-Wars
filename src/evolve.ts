@@ -6,6 +6,7 @@ import * as fs from "./flagsmith/admin.js";
 import { createSdk, SIGNUP_EVENT, waitUntilLive } from "./flagsmith/sdk.js";
 import { spawnVisitors } from "./personas.js";
 import { GENESIS, PRODUCT } from "./seed.js";
+import { fallbackInference } from "./stats.js";
 import { runSwarm } from "./swarm.js";
 import type { VariantSpec } from "./variant.js";
 
@@ -145,7 +146,19 @@ export async function runArena() {
     const results = await awaitResults(exp.id, metric.id, enrolled);
     for (const f of bus.state.fighters) {
       const r = results.variants.find((v) => v.key === f.key);
-      if (r) f.flagsmith = { visitors: r.visitors, conversions: r.conversions, rate: r.rate, chanceToWin: r.chanceToWin, lift: r.lift };
+      if (r) f.flagsmith = { visitors: r.visitors, conversions: r.conversions, rate: r.rate, chanceToWin: r.chanceToWin, lift: r.lift, source: "flagsmith" };
+    }
+    // Flagsmith withholds inference when an arm has < 5 conversions. If only the
+    // champion is short, apply Flagsmith's own formula to Flagsmith's counts.
+    const champStats = bus.state.fighters.find((f) => f.isChampion)?.flagsmith;
+    for (const f of bus.state.fighters) {
+      if (f.isChampion || !f.flagsmith || f.flagsmith.chanceToWin !== null || !champStats) continue;
+      const inf = fallbackInference(champStats, f.flagsmith);
+      if (!inf) continue;
+      f.flagsmith.chanceToWin = inf.chanceToWin;
+      if (champStats.conversions > 0) f.flagsmith.lift = inf.lift;
+      f.flagsmith.source = "fallback";
+      bus.log(`Champion had too few conversions for Flagsmith inference; ${f.spec.name}: ${pct(inf.chanceToWin)} chance to win (Flagsmith's formula on Flagsmith's counts)`);
     }
     const contenders = bus.state.fighters
       .filter((f) => !f.isChampion && (f.flagsmith?.chanceToWin ?? 0) >= winThreshold)
