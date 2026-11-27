@@ -51,13 +51,17 @@ export async function generateJson<T extends z.ZodType>(opts: {
   temperature?: number;
   /** Per-request timeout before failing over to the next model. */
   timeoutMs?: number;
+  /** Optional JPEG (base64) sent alongside the prompt, e.g. a page screenshot. */
+  imageJpeg?: string | null;
 }): Promise<z.infer<T>> {
   const jsonSchema = z.toJSONSchema(opts.schema, { target: "draft-7" });
   let prompt = opts.prompt;
   for (let attempt = 1; ; attempt++) {
     const res = await generate(opts.models, (model) => ai().models.generateContent({
       model,
-      contents: prompt,
+      contents: opts.imageJpeg
+        ? [{ role: "user", parts: [{ inlineData: { mimeType: "image/jpeg", data: opts.imageJpeg } }, { text: prompt }] }]
+        : prompt,
       config: {
         systemInstruction: opts.system,
         temperature: opts.temperature ?? 0.9,

@@ -15,9 +15,11 @@ export interface Verdict {
 
 const SYSTEM = `You simulate real website visitors deciding whether to start a free trial.
 Stay in character for each visitor and judge only what is on the page.
+When a screenshot is provided, it is exactly what the visitor sees: design, readability, visual hierarchy,
+colour contrast and how trustworthy the page looks matter as much as the words.
 For each visitor, estimate "likelihood": the percentage chance (0-100) that THIS person starts a trial from THIS page.
 Be calibrated like real web traffic: most visitors to most landing pages do not convert.
-- 0-3: page is irrelevant, confusing or off-putting to this person
+- 0-3: page is irrelevant, confusing, hard to read or off-putting to this person
 - 4-12: typical; mildly interested
 - 13-30: strong fit; the page answers their key question
 - above 30: rare; the page is exactly what they were searching for
@@ -44,13 +46,15 @@ function draw(visitorId: string): number {
  * keeps conversion rates realistic and outcomes naturally noisy.
  */
 export async function judgeBatch(
-  pageText: string,
+  page: { text: string; screenshot: string | null },
   visitors: Visitor[],
   models: string[] = config.gemini.visitorModels,
 ): Promise<Verdict[]> {
   const prompt = [
     `PRODUCT: ${PRODUCT.name}`,
-    `THE PAGE EACH VISITOR SEES:\n"""\n${pageText}\n"""`,
+    page.screenshot
+      ? `The attached screenshot is the page every visitor below sees. Its text, for reference:\n"""\n${page.text}\n"""`
+      : `THE PAGE EACH VISITOR SEES:\n"""\n${page.text}\n"""`,
     `VISITORS:\n${visitors.map((v) => `- id=${v.id} | ${v.archetype.label}: ${v.archetype.description} | right now: ${v.mood}`).join("\n")}`,
     `Return one verdict per visitor id, in the same order.`,
   ].join("\n\n");
@@ -61,6 +65,7 @@ export async function judgeBatch(
     prompt,
     schema: Verdicts,
     temperature: 0.8,
+    imageJpeg: page.screenshot,
   });
   const byId = new Map(verdicts.map((v) => [v.id, v]));
   return visitors.map((v) => {

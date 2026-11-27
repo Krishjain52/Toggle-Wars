@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Join the battle · Toggle Wars</title>
+<link rel="icon" href="/favicon.svg">
+<style>
+  *{box-sizing:border-box}
+  [hidden]{display:none!important}
+  body{margin:0;min-height:100vh;font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;background:#0b0d12;color:#e8eaf0}
+  .bar{position:sticky;top:0;z-index:5;display:flex;gap:10px;align-items:center;justify-content:center;flex-wrap:wrap;
+    padding:calc(env(safe-area-inset-top,0px) + 8px) 14px 8px;background:rgba(11,13,18,.92);backdrop-filter:blur(8px);color:#e8eaf0;font-size:13px}
+  .bar b{color:#f5c542;letter-spacing:.06em}
+  .pill{border:1px solid #2a2f3d;border-radius:999px;padding:3px 10px;color:#aab1c4}
+  .center{min-height:calc(100vh - 44px);display:grid;place-items:center;padding:24px;text-align:center}
+  .center h1{font-size:clamp(26px,6vw,40px);margin:0 0 8px;letter-spacing:-.02em}
+  .center p{color:#aab1c4;max-width:44ch;margin:0 auto}
+  .spinner{width:34px;height:34px;border-radius:50%;border:3px solid #2a2f3d;border-top-color:#f5c542;animation:spin 1s linear infinite;margin:0 auto 18px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .toast{position:fixed;left:50%;bottom:calc(env(safe-area-inset-bottom,0px) + 20px);transform:translateX(-50%);z-index:10;
+    background:#3ddc84;color:#06210f;font-weight:800;padding:14px 20px;border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.35);
+    max-width:calc(100vw - 32px);text-align:center;animation:rise .35s ease-out}
+  @keyframes rise{from{transform:translate(-50%,20px);opacity:0}}
+</style>
+</head>
+<body>
+<div class="bar"><b>⚔️ TOGGLE WARS</b><span class="pill" id="status">connecting…</span></div>
+<main id="stage">
+  <div class="center"><div><div class="spinner"></div><h1>Joining the arena…</h1><p>Asking Flagsmith which page you should see.</p></div></div>
+</main>
+<div class="toast" id="toast" hidden></div>
+
+<script src="/vendor/flagsmith.js"></script>
+<script>
+const $ = (id) => document.getElementById(id);
+const humanId = (() => {
+  try {
+    let id = localStorage.getItem("tw-human-id");
+    if (!id) { id = "human-" + Math.random().toString(36).slice(2, 10); localStorage.setItem("tw-human-id", id); }
+    return id;
+  } catch { return "human-" + Math.random().toString(36).slice(2, 10); }
+})();
+let shownFlag = null;
+let initialised = false;
+
+function toast(text) {
+  const t = $("toast");
+  t.textContent = text;
+  t.hidden = false;
+  clearTimeout(toast.timer);
+  toast.timer = setTimeout(() => (t.hidden = true), 4000);
+}
+
+function waiting(title, text) {
+  $("stage").innerHTML = `<div class="center"><div><div class="spinner"></div><h1>${title}</h1><p>${text}</p></div></div>`;
+}
+
+async function post(path, body) {
+  const r = await fetch(path, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
+  return r.headers.get("content-type")?.includes("json") ? r.json() : null;
+}
+
+async function show(current) {
+  // The browser asks Flagsmith directly: this exposure is recorded by Flagsmith
+  // in the same experiment as the synthetic visitors.
+  if (!initialised) {
+    await flagsmith.init({
+      environmentID: current.environmentKey,
+      identity: humanId,
+      enableEvents: true,
+      cacheFlags: false,
+      ...(current.apiUrl ? { api: current.apiUrl } : {}),
+      ...(current.eventsUrl ? { eventProcessorConfig: { eventsApiUrl: current.eventsUrl } } : {}),
+    });
+    initialised = true;
+  } else {
+    await flagsmith.getFlags();
+  }
+  const flag = flagsmith.getExperimentFlag(current.flagName);
+  if (!flag || !flag.experiment || !flag.experiment.inExperiment) {
+    waiting("Almost there…", "Flagsmith hasn't enrolled you yet. Retrying in a moment.");
+    return false;
+  }
+  const page = await post("/api/render", { value: flag.value });
+  const fighterKey = flag.variant || "control";
+  document.body.style.background = page.background;
+  $("stage").innerHTML = page.html;
+  $("status").textContent = `Generation ${current.generation} · Flagsmith picked this page for you`;
+  shownFlag = current.flagName;
+  await post("/api/human", { id: humanId, flagName: current.flagName, fighterKey, action: "view" });
+
+  document.querySelectorAll("#stage .cta").forEach((cta) => cta.addEventListener("click", async (ev) => {
+    ev.preventDefault();
+    flagsmith.trackEvent("arena_signup");
+    await flagsmith.flushEvents();
+    await post("/api/human", { id: humanId, flagName: current.flagName, fighterKey, action: "signup" });
+    toast("✅ Signed up! Flagsmith recorded your conversion in the live experiment.");
+  }, { once: true }));
+  return true;
+}
+
+async function tick() {
+  try {
+    const current = await (await fetch("/api/current")).json();
+    if (!current.environmentKey) {
+      $("status").textContent = "replay mode";
+      waiting("This arena is a replay", "Real visitors can join when the arena runs live against Flagsmith.");
+    } else if (!current.battling) {
+      $("status").textContent = "waiting for the next battle";
+      if (shownFlag === null) waiting("Waiting for the next battle", "When a generation starts fighting, Flagsmith will assign you one of the pages. Keep this tab open.");
+    } else if (current.flagName !== shownFlag) {
+      await show(current);
+    }
+  } catch (e) {
+    $("status").textContent = "reconnecting…";
+  }
+  setTimeout(tick, 3000);
+}
+tick();
+</script>
+</body>
+</html>

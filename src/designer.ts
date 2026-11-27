@@ -11,6 +11,8 @@ export interface GenerationFeedback {
   objections: string[];
   /** Short quotes from visitors who DID sign up anywhere. */
   praise: string[];
+  /** How each visitor type responded to the champion. */
+  segments: string[];
 }
 
 const SYSTEM = `You are a conversion-rate designer in a landing-page evolution arena.
@@ -39,6 +41,7 @@ export async function breedChallengers(
           `LAST ROUND SCOREBOARD:\n${feedback.scoreboard.map((s) => `- ${s.name}: ${(s.conversionRate * 100).toFixed(1)}% of ${s.visitors}`).join("\n")}`,
           `WHY VISITORS LEFT THE CHAMPION:\n${feedback.objections.map((q) => `- "${q}"`).join("\n") || "- (none recorded)"}`,
           `WHAT MADE VISITORS SIGN UP:\n${feedback.praise.map((q) => `- "${q}"`).join("\n") || "- (none recorded)"}`,
+          `HOW EACH VISITOR TYPE RESPONDED TO THE CHAMPION:\n${feedback.segments.map((x) => `- ${x}`).join("\n") || "- (no data)"}`,
         ].join("\n\n")
       : "This is the first generation: no visitor feedback yet.",
     `Create exactly ${count} challengers for generation ${generation}. Make them meaningfully different from each other.`,

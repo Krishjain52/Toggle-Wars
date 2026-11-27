@@ -4,224 +4,710 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Toggle Wars Arena</title>
+<link rel="icon" href="/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=JetBrains+Mono:wght@400;600&display=swap">
 <style>
   :root{
-    --bg:#0b0d12;--panel:#12151d;--panel2:#181c26;--line:#262b38;--fg:#e8eaf0;--dim:#8a91a5;
-    --gold:#f5c542;--green:#3ddc84;--red:#ff5d5d;--blue:#5b8cff;--violet:#a970ff;
+    --bg:#07080c;--panel:#0f121a;--panel2:#151a25;--line:#222838;--line2:#2c3446;--fg:#eef0f6;--dim:#8c93a8;--faint:#5b6276;
+    --gold:#f5c542;--green:#3ddc84;--red:#ff5d6c;--blue:#5b8cff;
+    --c0:#f5c542;--c1:#22d3ee;--c2:#c084fc;--c3:#ff8a4c;
+    --display:"Space Grotesk",ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;
+    --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
   }
   *{box-sizing:border-box}
   [hidden]{display:none!important}
-  body{margin:0;background:radial-gradient(1200px 600px at 50% -200px,#1b2140 0%,var(--bg) 60%) fixed,var(--bg);
-    color:var(--fg);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;min-height:100vh}
-  .app{max-width:1500px;margin:0 auto;padding:20px 20px 40px}
-  header{display:flex;align-items:center;gap:18px;flex-wrap:wrap}
-  .logo{font-weight:900;font-size:26px;letter-spacing:.06em}
-  .logo span{color:var(--gold)}
-  .gen{background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:6px 14px;font-weight:700}
-  .gen b{color:var(--gold)}
+  html,body{margin:0;background:var(--bg);color:var(--fg)}
+  body{font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif;min-height:100vh;
+    background:radial-gradient(1100px 520px at 50% -180px,rgba(91,140,255,.16),transparent 70%),var(--bg)}
+  a{color:var(--blue);text-decoration:none}
+  a:hover{text-decoration:underline}
+  .app{max-width:1560px;margin:0 auto;padding:16px 20px 40px}
+
+  /* ── header ─────────────────────────────────────────── */
+  header{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+  .logo{font:700 26px/1 var(--display);letter-spacing:.04em;display:flex;align-items:center;gap:10px}
+  .logo i{font-style:normal;color:var(--gold)}
+  .logo svg{width:30px;height:30px}
+  .pips{display:flex;gap:6px;align-items:center}
+  .pip{font:600 11px/1 var(--mono);padding:6px 9px;border-radius:8px;border:1px solid var(--line);color:var(--faint);background:var(--panel)}
+  .pip.done{color:var(--fg);border-color:var(--line2)}
+  .pip.now{color:#111;background:var(--gold);border-color:var(--gold)}
+  .badge-replay{font:600 11px/1 var(--mono);padding:6px 9px;border-radius:8px;background:#2a1f45;color:#c9b2ff;border:1px solid #4a3a7a}
   .spacer{flex:1}
-  .btn{background:var(--gold);color:#111;border:0;border-radius:10px;padding:10px 18px;font-weight:800;cursor:pointer;font-size:14px}
-  .btn:disabled{opacity:.4;cursor:default}
-  .btn.ghost{background:transparent;color:var(--fg);border:1px solid var(--line)}
-  .btn.red{background:var(--red);color:#fff}
-  a{color:var(--blue)}
-  .phase{margin:16px 0;padding:12px 16px;border-radius:12px;background:var(--panel);border:1px solid var(--line);
-    display:flex;gap:12px;align-items:center;font-size:15px}
-  .dot{width:10px;height:10px;border-radius:50%;background:var(--dim);flex:none}
-  .phase[data-p=battling] .dot,.phase[data-p=analysing] .dot,.phase[data-p=breeding] .dot,.phase[data-p=deploying] .dot{background:var(--green);animation:pulse 1s infinite}
-  .phase[data-p=verdict] .dot,.phase[data-p=done] .dot{background:var(--gold)}
-  .phase[data-p=error] .dot{background:var(--red)}
-  .phase[data-p=awaiting-approval] .dot{background:var(--gold);animation:pulse .6s infinite}
-  @keyframes pulse{50%{opacity:.25}}
-  .main{display:grid;grid-template-columns:1fr 340px;gap:18px}
-  @media (max-width:1100px){.main{grid-template-columns:1fr}}
-  .fighters{display:grid;grid-template-columns:repeat(auto-fill,minmax(270px,1fr));gap:16px}
-  .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;overflow:hidden;position:relative;transition:transform .4s,opacity .4s,border-color .4s}
-  .card.champ{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold),0 0 40px -10px var(--gold)}
-  .card.defeated{opacity:.45;transform:scale(.97)}
-  .card.winner,.card.defended{border-color:var(--green);box-shadow:0 0 0 2px var(--green),0 0 50px -8px var(--green);transform:scale(1.02)}
-  .preview{height:190px;overflow:hidden;position:relative;background:#fff;border-bottom:1px solid var(--line)}
-  .preview iframe{width:250%;height:250%;border:0;transform:scale(.4);transform-origin:0 0;pointer-events:none}
-  .badge{position:absolute;top:10px;left:10px;background:rgba(0,0,0,.75);color:#fff;font-weight:800;font-size:11px;
-    padding:4px 8px;border-radius:6px;letter-spacing:.05em;text-transform:uppercase}
-  .badge.gold{background:var(--gold);color:#111}
-  .ko{position:absolute;inset:0;display:grid;place-items:center;font-size:44px;font-weight:900;letter-spacing:.1em;
-    color:var(--red);text-shadow:0 2px 20px #000;background:rgba(11,13,18,.35)}
-  .ko.win{color:var(--green)}
-  .body{padding:14px}
-  .name{font-weight:800;font-size:17px;display:flex;align-items:center;gap:8px}
-  .strategy{color:var(--dim);font-size:12.5px;margin:4px 0 12px;min-height:36px}
-  .hp{height:12px;background:var(--panel2);border-radius:99px;overflow:hidden;border:1px solid var(--line)}
-  .hp i{display:block;height:100%;background:linear-gradient(90deg,var(--blue),var(--violet));border-radius:99px;transition:width .5s}
-  .card.champ .hp i{background:linear-gradient(90deg,#d99b00,var(--gold))}
-  .stats{display:flex;justify-content:space-between;margin-top:8px;font-variant-numeric:tabular-nums;color:var(--dim);font-size:12.5px}
-  .stats b{color:var(--fg);font-size:15px}
-  .fs{margin-top:10px;padding-top:10px;border-top:1px dashed var(--line);font-size:12.5px;color:var(--dim)}
-  .fs b{color:var(--fg)}
-  .fs .win{color:var(--green)}
-  aside{display:flex;flex-direction:column;gap:18px;min-width:0}
-  .panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px}
-  .panel h3{margin:0 0 10px;font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
-  .feed{display:flex;flex-direction:column;gap:8px;max-height:430px;overflow:auto}
-  .bubble{background:var(--panel2);border-radius:12px;padding:8px 10px;border-left:3px solid var(--red);animation:pop .3s}
-  .bubble.yes{border-left-color:var(--green)}
-  .bubble small{display:block;color:var(--dim);font-size:11px;margin-bottom:2px}
-  @keyframes pop{from{transform:translateY(6px);opacity:0}}
-  .log{font:12px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--dim);max-height:200px;overflow:auto;white-space:pre-wrap}
-  .lineage{display:flex;gap:14px;overflow-x:auto;padding-bottom:6px}
-  .gen-card{flex:none;width:220px;background:var(--panel2);border:1px solid var(--line);border-radius:12px;overflow:hidden}
-  .gen-card .preview{height:120px}
-  .gen-card .body{padding:10px;font-size:12.5px}
-  .empty{color:var(--dim);text-align:center;padding:50px 20px;border:1px dashed var(--line);border-radius:16px}
-  .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:grid;place-items:center;padding:20px;z-index:10}
-  .modal .box{background:var(--panel);border:1px solid var(--gold);border-radius:16px;max-width:620px;width:100%;padding:22px;box-shadow:0 20px 80px #000}
-  .modal h2{margin:0 0 6px;font-size:19px}
-  .modal ul{padding-left:18px;color:var(--dim);margin:12px 0 18px}
-  .modal li{margin:5px 0}
-  .modal .row{display:flex;gap:10px;justify-content:flex-end}
-  h2.section{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim);margin:26px 0 10px}
+  .hlinks{display:flex;gap:14px;align-items:center;font-size:13px}
+  .btn{font:700 14px/1 var(--display);background:var(--gold);color:#111;border:0;border-radius:10px;padding:12px 18px;cursor:pointer;letter-spacing:.02em}
+  .btn:disabled{opacity:.35;cursor:default}
+  .btn.ghost{background:transparent;color:var(--fg);border:1px solid var(--line2)}
+
+  /* ── phase banner ───────────────────────────────────── */
+  .phase{margin:14px 0 12px;border-radius:12px;background:var(--panel);border:1px solid var(--line);overflow:hidden}
+  .phase-row{display:flex;gap:12px;align-items:center;padding:11px 16px;font-size:15px}
+  .phase-ico{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;background:var(--panel2);flex:none}
+  .phase-text{flex:1;min-width:0}
+  .phase-tag{font:600 11px/1 var(--mono);color:var(--dim);letter-spacing:.08em;text-transform:uppercase;margin-bottom:3px}
+  .phase-detail{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .count{font:600 20px/1 var(--mono);color:var(--gold);font-variant-numeric:tabular-nums}
+  .progress{height:3px;background:transparent}
+  .progress i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--blue),var(--gold));transition:width .9s linear}
+  .phase.live .phase-ico{animation:pulse 1.2s infinite}
+  @keyframes pulse{50%{box-shadow:0 0 0 6px rgba(245,197,66,.12)}}
+
+  /* ── layout ─────────────────────────────────────────── */
+  .main{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:18px;align-items:start}
+  @media (max-width:1180px){.main{grid-template-columns:1fr}}
+  .section-title{font:600 11px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin:22px 0 10px;display:flex;gap:10px;align-items:center}
+  .section-title span{color:var(--faint);letter-spacing:.04em;text-transform:none;font-family:system-ui}
+
+  /* ── arena + crowd ──────────────────────────────────── */
+  .arena{position:relative}
+  .gate{height:54px;display:flex;align-items:center;justify-content:center;gap:10px;color:var(--dim);font:600 12px/1 var(--mono);letter-spacing:.08em;
+    border:1px dashed var(--line2);border-radius:12px;margin-bottom:12px;background:repeating-linear-gradient(90deg,transparent 0 14px,rgba(255,255,255,.015) 14px 28px)}
+  .gate b{color:var(--fg);font-size:15px}
+  .gate .vision{color:#9fe6c1}
+  .crowd{position:absolute;inset:0;pointer-events:none;z-index:4;overflow:visible}
+  .dot{position:absolute;width:9px;height:9px;border-radius:50%;margin:-4.5px 0 0 -4.5px;box-shadow:0 0 10px currentColor}
+  .fighters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+  @media (max-width:1000px){.fighters{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  .empty{color:var(--dim);text-align:center;padding:60px 20px;border:1px dashed var(--line2);border-radius:16px;grid-column:1/-1}
+
+  .card{--c:var(--c1);position:relative;background:var(--panel);border:1px solid var(--line);border-radius:16px;overflow:hidden;
+    transition:transform .5s cubic-bezier(.2,.8,.2,1),opacity .5s,box-shadow .5s,border-color .5s}
+  .card::before{content:"";position:absolute;inset:0 0 auto;height:3px;background:var(--c)}
+  .card.champ{border-color:rgba(245,197,66,.55);box-shadow:0 0 0 1px rgba(245,197,66,.25),0 18px 60px -30px var(--gold)}
+  .card.hit{box-shadow:0 0 0 2px var(--green),0 0 40px -6px var(--green)}
+  .card.defeated{opacity:.42;transform:scale(.97);filter:saturate(.4)}
+  .card.winner,.card.defended{border-color:var(--green);box-shadow:0 0 0 2px var(--green),0 22px 70px -20px var(--green);transform:translateY(-4px)}
+  .card-top{display:flex;justify-content:space-between;align-items:center;padding:10px 12px 8px;font:600 10.5px/1 var(--mono);letter-spacing:.08em;text-transform:uppercase}
+  .role{color:var(--c)}
+  .vkey{color:var(--faint);text-transform:none;letter-spacing:0;max-width:55%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .preview{aspect-ratio:16/10;overflow:hidden;position:relative;background:#fff;border-block:1px solid var(--line)}
+  .preview iframe{position:absolute;top:0;left:0;width:1280px;height:800px;border:0;transform-origin:0 0;pointer-events:none}
+  .stamp{position:absolute;inset:0;display:grid;place-items:center;background:rgba(7,8,12,.45);font:700 34px/1 var(--display);letter-spacing:.12em;
+    color:var(--red);text-shadow:0 4px 30px #000;animation:stamp .45s cubic-bezier(.2,1.6,.4,1)}
+  .stamp.win{color:var(--green);background:rgba(7,8,12,.25)}
+  @keyframes stamp{from{transform:scale(1.8);opacity:0}}
+  .card-body{padding:12px 14px 14px}
+  .name{font:700 18px/1.15 var(--display);letter-spacing:-.01em;margin-bottom:4px}
+  .strategy{color:var(--dim);font-size:12.5px;line-height:1.4;min-height:35px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .score{display:flex;align-items:baseline;justify-content:space-between;margin:12px 0 6px}
+  .rate{font:700 30px/1 var(--display);font-variant-numeric:tabular-nums}
+  .rate small{font-size:13px;color:var(--dim);font-weight:500;margin-left:4px}
+  .tally{font:500 12px/1 var(--mono);color:var(--dim)}
+  .bar{height:8px;border-radius:99px;background:var(--panel2);overflow:hidden}
+  .bar i{display:block;height:100%;width:0;border-radius:99px;background:var(--c);transition:width .5s}
+  .personas{display:grid;grid-template-columns:repeat(8,1fr);gap:3px;margin-top:10px}
+  .personas i{height:16px;border-radius:4px;background:var(--panel2);position:relative}
+  .verdict{margin-top:12px;padding:10px;border-radius:10px;background:var(--panel2);font-size:12.5px;color:var(--dim);min-height:44px}
+  .verdict b{color:var(--fg);font-family:var(--mono)}
+  .verdict .win{color:var(--green)}
+  .verdict .fb{font:600 10px/1 var(--mono);color:#c9b2ff;border:1px solid #4a3a7a;border-radius:5px;padding:2px 5px;margin-left:4px;cursor:help}
+  .shimmer{background:linear-gradient(90deg,var(--panel2) 0%,#1d2332 50%,var(--panel2) 100%);background-size:200% 100%;animation:sh 1.4s infinite}
+  @keyframes sh{to{background-position:-200% 0}}
+  .humans{margin-top:8px;font-size:12px;color:#ffd9a3}
+  .plus{position:absolute;right:14px;top:56%;font:700 18px/1 var(--display);color:var(--green);pointer-events:none;animation:plus 1s ease-out forwards}
+  @keyframes plus{to{transform:translateY(-40px);opacity:0}}
+
+  /* ── lineage ────────────────────────────────────────── */
+  .lineage{display:flex;gap:0;align-items:stretch;overflow-x:auto;padding-bottom:6px}
+  .gen-node{flex:none;width:230px;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .gen-node .preview{aspect-ratio:16/10}
+  .gen-node .body{padding:10px 12px 12px;font-size:12.5px}
+  .gen-node .t{font:600 10.5px/1 var(--mono);letter-spacing:.08em;color:var(--dim);text-transform:uppercase;margin-bottom:6px}
+  .gen-node .n{font:700 15px/1.2 var(--display);margin-bottom:2px}
+  .gen-node .r{font:700 20px/1 var(--display);color:var(--green);margin:6px 0}
+  .dna{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
+  .dna span{font:500 10.5px/1 var(--mono);padding:4px 6px;border-radius:6px;background:var(--panel2);color:#b9c0d4;border:1px solid var(--line)}
+  .arrow{flex:none;width:44px;display:grid;place-items:center;color:var(--faint);font-size:20px}
+  .spark{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-top:12px}
+
+  /* ── heatmap + insights ─────────────────────────────── */
+  .two{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:14px}
+  @media (max-width:1000px){.two{grid-template-columns:1fr}}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px}
+  .heat{width:100%;border-collapse:separate;border-spacing:3px;font-size:12px}
+  .heat th{font:600 10.5px/1.2 var(--mono);color:var(--dim);text-align:left;font-weight:600;padding:2px 4px}
+  .heat th.f{text-align:center;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .heat td{text-align:center;border-radius:6px;padding:7px 2px;font:600 11.5px/1 var(--mono);color:#0b0d12;min-width:54px}
+  .heat td.na{color:var(--faint);background:var(--panel2)!important}
+  .insights h3{font:700 19px/1.25 var(--display);margin:2px 0 10px}
+  .insights ol{margin:0;padding-left:18px;color:#cfd4e3}
+  .insights li{margin:7px 0}
+  .insights .muted{color:var(--dim)}
+
+  /* ── right rail ─────────────────────────────────────── */
+  aside{display:flex;flex-direction:column;gap:14px;position:sticky;top:12px}
+  .join{display:flex;gap:12px;align-items:center}
+  .join img{width:92px;height:92px;border-radius:10px;background:#fff;padding:4px;flex:none}
+  .join b{font:700 15px/1.2 var(--display);display:block;margin-bottom:4px}
+  .join p{margin:0;color:var(--dim);font-size:12px;word-break:break-all}
+  .join .hc{color:#ffd9a3;font-size:12px;margin-top:6px}
+  .rail-title{font:600 11px/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--dim);margin-bottom:10px;display:flex;justify-content:space-between;gap:8px;align-items:center}
+  .rail-title .model{letter-spacing:0;text-transform:none;font-weight:400;color:#9fe6c1;white-space:nowrap}
+  .feed{display:flex;flex-direction:column;gap:7px;max-height:430px;overflow:hidden}
+  .thought{display:grid;grid-template-columns:28px 1fr;gap:8px;padding:8px 10px;border-radius:12px;background:var(--panel2);border-left:3px solid var(--red);animation:in .35s ease-out}
+  .thought.yes{border-left-color:var(--green)}
+  .thought.human{border-left-color:#ffb347;background:#21190f}
+  .thought .av{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;background:#0b0e15;font-size:15px}
+  .thought small{display:flex;gap:6px;align-items:center;color:var(--dim);font-size:11px;margin-bottom:2px;white-space:nowrap;overflow:hidden}
+  .thought small i{width:7px;height:7px;border-radius:50%;flex:none}
+  .thought p{margin:0;font-size:12.5px;color:#dfe3ee}
+  @keyframes in{from{transform:translateY(-6px);opacity:0}}
+  .log{font:11.5px/1.55 var(--mono);color:var(--dim);max-height:180px;overflow:auto;white-space:pre-wrap;word-break:break-word}
+  .legend{display:flex;flex-wrap:wrap;gap:6px 10px;font-size:11px;color:var(--dim)}
+  .legend span{display:inline-flex;align-items:center;gap:5px}
+  .legend i{width:8px;height:8px;border-radius:50%}
+
+  /* ── modal + verdict overlay ────────────────────────── */
+  .modal{position:fixed;inset:0;background:rgba(3,4,8,.72);backdrop-filter:blur(4px);display:grid;place-items:center;padding:20px;z-index:20}
+  .modal .box{background:var(--panel);border:1px solid var(--gold);border-radius:18px;max-width:980px;width:100%;max-height:92vh;overflow:auto;padding:22px 24px;box-shadow:0 30px 120px #000}
+  .modal .kicker{color:var(--gold);font:600 11px/1 var(--mono);letter-spacing:.14em}
+  .modal h2{font:700 24px/1.2 var(--display);margin:8px 0 10px}
+  .modal ul{padding-left:18px;color:#cfd4e3;margin:0 0 14px}
+  .modal li{margin:4px 0}
+  .previews{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin:4px 0 14px}
+  .previews .p{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:var(--panel2)}
+  .previews .p div.c{padding:8px 10px;font-size:12px;color:var(--dim)}
+  .previews .p b{display:block;color:var(--fg);font:700 14px/1.2 var(--display);margin-bottom:2px}
+  pre.cmd{background:#05060a;border:1px solid var(--line);border-radius:10px;padding:12px 14px;font:12px/1.6 var(--mono);color:#9fe6c1;overflow-x:auto;margin:0 0 16px}
+  pre.cmd span{color:var(--faint)}
+  .modal .row{display:flex;gap:10px;justify-content:flex-end;align-items:center;flex-wrap:wrap}
+  .modal .row .note{flex:1;color:var(--dim);font-size:12px;min-width:200px}
+  .overlay{position:fixed;inset:0;display:grid;place-items:center;z-index:15;pointer-events:none;background:radial-gradient(circle at 50% 45%,rgba(7,8,12,.55),rgba(7,8,12,.88))}
+  .overlay .big{text-align:center;animation:boom .6s cubic-bezier(.2,1.5,.4,1);padding:0 20px}
+  .overlay .big .k{font:600 13px/1 var(--mono);letter-spacing:.2em;color:var(--gold)}
+  .overlay .big h1{font:700 clamp(30px,5vw,64px)/1.05 var(--display);margin:14px auto 10px;letter-spacing:-.02em;max-width:18ch}
+  .overlay .big p{font:500 18px/1.4 var(--mono);color:#cfd4e3;margin:0}
+  @keyframes boom{from{transform:scale(.6);opacity:0}}
+  .confetti{position:fixed;top:-10px;width:8px;height:14px;z-index:16;pointer-events:none;border-radius:2px;animation:fall linear forwards}
+  @keyframes fall{to{transform:translateY(110vh) rotate(720deg)}}
 </style>
 </head>
 <body>
 <div class="app">
   <header>
-    <div class="logo">TOGGLE <span>WARS</span></div>
-    <div class="gen" id="gen">Generation <b>–</b></div>
-    <div id="product" style="color:var(--dim)"></div>
+    <div class="logo">
+      <svg viewBox="0 0 64 64" aria-hidden="true"><rect width="64" height="64" rx="14" fill="#151a25"/><path d="M18 46 46 18M18 18l28 28" stroke="#f5c542" stroke-width="7" stroke-linecap="round"/></svg>
+      TOGGLE <i>WARS</i>
+    </div>
+    <div class="pips" id="pips"></div>
+    <span class="badge-replay" id="replayBadge" hidden>⏯ REPLAY OF A REAL RUN</span>
     <div class="spacer"></div>
-    <a id="expLink" target="_blank" rel="noopener" hidden>Open experiment in Flagsmith ↗</a>
-    <a href="/live" target="_blank" rel="noopener">Live landing page ↗</a>
+    <div class="hlinks">
+      <a id="expLink" target="_blank" rel="noopener" hidden>Flagsmith experiment ↗</a>
+      <a href="/live" target="_blank" rel="noopener">Live landing page ↗</a>
+    </div>
     <button class="btn" id="startBtn">⚔️ Start evolution</button>
   </header>
 
-  <div class="phase" id="phase" data-p="idle"><span class="dot"></span><span id="phaseText">Ready. Press Start to breed the first generation of challengers.</span></div>
+  <div class="phase" id="phase">
+    <div class="phase-row">
+      <div class="phase-ico" id="phaseIco">⏸</div>
+      <div class="phase-text">
+        <div class="phase-tag" id="phaseTag">Ready</div>
+        <div class="phase-detail" id="phaseText">Press Start: Gemini breeds challengers, you approve, Flagsmith runs the experiment.</div>
+      </div>
+      <div class="count" id="count"></div>
+    </div>
+    <div class="progress"><i id="progress"></i></div>
+  </div>
 
   <div class="main">
     <section>
-      <div class="fighters" id="fighters"><div class="empty">No fighters yet. The reigning champion and its challengers appear here.</div></div>
-      <h2 class="section">Champion lineage</h2>
-      <div class="lineage" id="lineage"><div class="empty" style="width:100%;padding:24px">Each generation's champion is recorded here.</div></div>
+      <div class="arena" id="arena">
+        <div class="gate" id="gate">VISITORS ENTER HERE</div>
+        <div class="fighters" id="fighters"><div class="empty">The reigning champion and its challengers appear here.</div></div>
+        <div class="crowd" id="crowd"></div>
+      </div>
+
+      <div class="two" style="margin-top:6px">
+        <div>
+          <div class="section-title">Who converts on what <span>sign-up rate by visitor type, this generation</span></div>
+          <div class="panel"><table class="heat" id="heat"></table></div>
+        </div>
+        <div>
+          <div class="section-title">Insights <span id="insightsSub">written when the run ends</span></div>
+          <div class="panel insights" id="insights"><p class="muted">After the final generation, Toggle Wars turns every visitor's reaction into findings your team can act on.</p></div>
+        </div>
+      </div>
+
+      <div class="section-title">Evolution <span>each generation's champion, and what mutated</span></div>
+      <div class="lineage" id="lineage"><div class="empty" style="padding:26px">The family tree of champions grows here.</div></div>
+      <div class="spark" id="spark" hidden></div>
     </section>
+
     <aside>
-      <div class="panel"><h3>Visitor thoughts</h3><div class="feed" id="feed"></div></div>
-      <div class="panel"><h3>Agent log</h3><div class="log" id="log"></div></div>
+      <div class="panel join" id="join">
+        <img src="/qr.svg" alt="QR code to join the battle">
+        <div><b>Join the battle</b><p id="joinUrl"></p><div class="hc" id="humanCount"></div></div>
+      </div>
+      <div class="panel">
+        <div class="rail-title"><span>Visitor thoughts</span><span class="model" id="judge"></span></div>
+        <div class="legend" id="legend" style="margin-bottom:10px"></div>
+        <div class="feed" id="feed"></div>
+      </div>
+      <div class="panel"><div class="rail-title"><span>Agent log</span></div><div class="log" id="log"></div></div>
     </aside>
   </div>
 </div>
 
 <div class="modal" id="modal" hidden>
   <div class="box">
-    <div style="color:var(--gold);font-weight:800;font-size:12px;letter-spacing:.12em">⚑ APPROVAL NEEDED</div>
+    <div class="kicker">⚑ HUMAN APPROVAL REQUIRED</div>
     <h2 id="mTitle"></h2>
     <ul id="mDetails"></ul>
+    <div class="previews" id="mPreviews"></div>
+    <pre class="cmd" id="mCmds"></pre>
     <div class="row">
+      <div class="note" id="mNote">Nothing changes in Flagsmith until you approve. You can also answer in the terminal.</div>
       <button class="btn ghost" id="reject">Reject</button>
-      <button class="btn" id="approve">Approve & apply</button>
+      <button class="btn" id="approve">Approve &amp; apply</button>
     </div>
   </div>
 </div>
+<div class="overlay" id="overlay" hidden><div class="big" id="overlayBig"></div></div>
 
 <script>
 const $ = (id) => document.getElementById(id);
-const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" })[c]);
-const pct = (x) => (x * 100).toFixed(1) + "%";
-let state = null;
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+const pct = (x, d = 1) => (x * 100).toFixed(d) + "%";
+const PERSONAS = {
+  cto: { e: "👔", c: "#5b8cff", l: "Busy CTO" }, indie: { e: "🛠️", c: "#3ddc84", l: "Indie hacker" },
+  skeptic: { e: "🧐", c: "#ff5d6c", l: "Sceptical engineer" }, student: { e: "🎓", c: "#ffd166", l: "CS student" },
+  pm: { e: "📋", c: "#22d3ee", l: "Product manager" }, designer: { e: "🎨", c: "#f472b6", l: "Design founder" },
+  enterprise: { e: "🏢", c: "#a3a3ff", l: "Enterprise buyer" }, "drive-by": { e: "🚶", c: "#9ca3af", l: "Drive-by" },
+  human: { e: "🧑", c: "#ffb347", l: "Real human" },
+};
+const ORDER = ["cto", "indie", "skeptic", "student", "pm", "designer", "enterprise", "drive-by"];
+const FCOL = ["var(--c0)", "var(--c1)", "var(--c2)", "var(--c3)"];
+const PHASES = {
+  idle: ["⏸", "Ready"], breeding: ["🧬", "Breeding"], "awaiting-approval": ["⚑", "Awaiting approval"], deploying: ["🚀", "Deploying to Flagsmith"],
+  battling: ["⚔️", "Battle"], analysing: ["📊", "Flagsmith is judging"], verdict: ["🏆", "Verdict"], shipping: ["📦", "Shipping"], done: ["👑", "Done"], error: ["⚠️", "Error"],
+};
+
+let S = null;
+let cardsSig = "";
+let lastSeq = 0;
+let roundsShown = -1;
+let insightsShown = false;
+let lastPhase = "";
+let lastGen = 0;
 let shownApproval = null;
-let lastFightersSig = "";
-let lastRoundsCount = 0;
-const frames = new Map(); // fighter key -> last rendered html, so iframes don't reload every frame
+let feedSeq = -1;
 
-function fighterCard(f) {
-  const live = f.visitors ? f.signups / f.visitors : 0;
-  const rate = f.flagsmith ? f.flagsmith.rate : live;
-  const max = Math.max(0.0001, ...state.fighters.map((x) => x.flagsmith ? x.flagsmith.rate : (x.visitors ? x.signups / x.visitors : 0)));
-  const cls = ["card", f.isChampion ? "champ" : "", f.status].join(" ");
-  const overlay = f.status === "defeated" ? `<div class="ko">K.O.</div>`
-    : f.status === "winner" ? `<div class="ko win">WINNER</div>`
-    : f.status === "defended" ? `<div class="ko win">DEFENDED</div>` : "";
-  const fs = f.flagsmith
-    ? `<div class="fs">Flagsmith: <b>${f.flagsmith.conversions}/${f.flagsmith.visitors}</b> converted ·
-        ${f.isChampion ? "baseline" : f.flagsmith.chanceToWin == null ? "not enough data"
-          : `<span class="${f.flagsmith.chanceToWin >= 0.9 ? "win" : ""}"><b>${pct(f.flagsmith.chanceToWin)}</b> chance to beat champion${f.flagsmith.source === "fallback" ? " <span title='The champion had under 5 conversions, so Flagsmith withheld inference; computed with a two-proportion test on Flagsmith's counts'>(fallback ⓘ)</span>" : ""}</span>`}</div>` : "";
-  return `<div class="${cls}" data-key="${esc(f.key)}">
-    <div class="preview"><iframe data-key="${esc(f.key)}" title="${esc(f.spec.name)} preview"></iframe>
-      <div class="badge ${f.isChampion ? "gold" : ""}">${f.isChampion ? "👑 Champion" : "Challenger"}</div>${overlay}</div>
-    <div class="body">
-      <div class="name">${esc(f.spec.name)}</div>
-      <div class="strategy">${esc(f.spec.strategy)}</div>
-      <div class="hp"><i style="width:${(rate / max) * 100}%"></i></div>
-      <div class="stats"><span><b>${pct(rate)}</b> sign-up rate</span><span>${f.signups}/${f.visitors} visitors</span></div>
-      ${fs}
-    </div></div>`;
+$("legend").innerHTML = ORDER.concat("human").map((k) => `<span><i style="background:${PERSONAS[k].c}"></i>${PERSONAS[k].l}</span>`).join("");
+
+/* ── helpers ───────────────────────────────────────── */
+const frame = (html) => `<style>html,body{margin:0;height:100%;overflow:hidden}.tw-page{min-height:100vh}</style>${html}`;
+function fitPreviews(root = document) {
+  root.querySelectorAll(".preview").forEach((p) => {
+    const f = p.querySelector("iframe");
+    if (f) f.style.transform = `scale(${p.clientWidth / 1280})`;
+  });
 }
+window.addEventListener("resize", () => fitPreviews());
+function previewEl(html) {
+  const wrap = document.createElement("div");
+  wrap.className = "preview";
+  const f = document.createElement("iframe");
+  f.setAttribute("tabindex", "-1");
+  f.setAttribute("aria-hidden", "true");
+  f.srcdoc = frame(html || "");
+  wrap.appendChild(f);
+  return wrap;
+}
+function heatColor(rate) {
+  const t = Math.min(1, rate / 0.3); // 0% → slate, 30%+ → bright green
+  return `hsl(140 ${20 + 55 * t}% ${22 + 38 * t}%)`;
+}
+const fighterColor = (i) => FCOL[i] || "var(--c1)";
+const liveRate = (f) => (f.flagsmith ? f.flagsmith.rate : f.visitors ? f.signups / f.visitors : 0);
 
-function render() {
-  const s = state;
-  $("gen").innerHTML = `Generation <b>${s.generation || "–"}</b> / ${s.totalGenerations || "–"}`;
-  $("product").textContent = s.product ? `${s.product} · ${s.goal}` : "";
-  $("phase").dataset.p = s.phase;
-  if (s.phaseDetail) $("phaseText").textContent = s.phaseDetail;
-  $("startBtn").disabled = !["idle", "done", "error"].includes(s.phase);
-  $("expLink").hidden = !s.experimentUrl;
-  if (s.experimentUrl) $("expLink").href = s.experimentUrl;
-
-  const sig = JSON.stringify(s.fighters.map((f) => [f.key, f.visitors, f.signups, f.status, f.flagsmith, f.isChampion]));
-  if (s.fighters.length && sig !== lastFightersSig) {
-    lastFightersSig = sig;
-    // Keep existing preview iframes alive across re-renders so they don't reload and flicker.
-    const old = new Map([...document.querySelectorAll("#fighters iframe")].map((el) => [el.dataset.key, el]));
-    $("fighters").innerHTML = s.fighters.map(fighterCard).join("");
-    for (const f of s.fighters) {
-      const slot = document.querySelector(`#fighters iframe[data-key="${CSS.escape(f.key)}"]`);
-      const prev = old.get(f.key);
-      if (prev && frames.get(f.key) === f.html) slot.replaceWith(prev);
-      else { slot.srcdoc = `<body style="margin:0">${f.html}</body>`; frames.set(f.key, f.html); }
-    }
-  } else if (!s.fighters.length && lastFightersSig) {
-    lastFightersSig = "";
-    frames.clear();
-    $("fighters").innerHTML = `<div class="empty">Breeding the next generation…</div>`;
-  }
-
-  $("feed").innerHTML = s.thoughts.slice().reverse().map((t) => {
-    const fighter = s.fighters.find((f) => f.key === t.fighterKey);
-    return `<div class="bubble ${t.signup ? "yes" : ""}"><small>${t.signup ? "✅ signed up" : "❌ left"} · ${esc(t.persona)} on ${esc(fighter?.spec.name ?? t.fighterKey)}</small>${esc(t.text)}</div>`;
+/* ── header + phase ────────────────────────────────── */
+function renderHeader() {
+  const n = S.totalGenerations || 3;
+  $("pips").innerHTML = Array.from({ length: n }, (_, i) => {
+    const g = i + 1;
+    const cls = g < S.generation || (g === S.generation && S.phase === "done") ? "done" : g === S.generation ? "now" : "";
+    return `<span class="pip ${cls}">GEN ${g}</span>`;
   }).join("");
-
-  const log = $("log");
-  log.textContent = s.log.slice(-60).map((l) => `${l.at.slice(11, 19)}  ${l.text}`).join("\n");
-  log.scrollTop = log.scrollHeight;
-
-  if (s.rounds.length && s.rounds.length !== lastRoundsCount) {
-    lastRoundsCount = s.rounds.length;
-    $("lineage").innerHTML = s.rounds.map((r) => `<div class="gen-card">
-      <div class="preview"><iframe srcdoc="${esc(`<body style="margin:0">${r.html}</body>`)}" title="Generation ${r.generation} champion"></iframe></div>
-      <div class="body"><b>Gen ${r.generation}: ${esc(r.winner)}</b><br>
-        <span style="color:var(--dim)">${r.dethroned ? `dethroned ${esc(r.champion)}` : "defended the title"} · ${pct(r.winnerRate)}</span><br>
-        <a href="${esc(r.experimentUrl)}" target="_blank" rel="noopener">Flagsmith experiment ↗</a></div></div>`).join("");
+  $("replayBadge").hidden = !S.replay;
+  $("startBtn").disabled = !["idle", "done", "error"].includes(S.phase);
+  $("startBtn").textContent = S.replay ? "⏯ Play recorded run" : S.phase === "done" || S.phase === "error" ? "⚔️ Run again" : "⚔️ Start evolution";
+  $("expLink").hidden = !S.experimentUrl;
+  if (S.experimentUrl) { $("expLink").href = S.experimentUrl; $("expLink").textContent = `Flagsmith experiment #${S.experimentId ?? ""} ↗`; }
+  const [ico, tag] = PHASES[S.phase] || ["•", S.phase];
+  $("phaseIco").textContent = ico;
+  $("phaseTag").textContent = S.generation ? `${tag} · generation ${S.generation} of ${n}` : tag;
+  if (S.phaseDetail) $("phaseText").textContent = S.phaseDetail;
+  $("phase").classList.toggle("live", ["breeding", "deploying", "battling", "analysing", "shipping"].includes(S.phase));
+  $("joinUrl").textContent = S.joinUrl || "";
+  const hv = S.fighters.reduce((n, f) => n + f.humans.visitors, 0), hs = S.fighters.reduce((n, f) => n + f.humans.signups, 0);
+  $("humanCount").textContent = S.replay ? "Real people can join live runs." : hv ? `🧑 ${hv} real ${hv === 1 ? "person" : "people"} this round · ${hs} signed up` : "Scan to be a real visitor in the live Flagsmith experiment.";
+  $("judge").textContent = S.judgeModel ? `${S.vision ? "👁️ " : ""}${S.judgeModel}` : "";
+  const total = S.fighters.reduce((n, f) => n + f.visitors, 0);
+  $("gate").innerHTML = S.fighters.length
+    ? `<span>VISITORS JUDGED</span><b>${total}</b>${S.vision ? `<span class="vision">· 👁️ LOOKING AT REAL SCREENSHOTS</span>` : ""}`
+    : "VISITORS ENTER HERE";
+}
+let cd = { end: 0, total: 1 };
+function tickCountdown() {
+  if (!S) return;
+  if (S.phaseEndsAt && S.phaseEndsAt > Date.now()) {
+    if (cd.end !== S.phaseEndsAt) cd = { end: S.phaseEndsAt, total: S.phaseEndsAt - Date.now() };
+    const left = S.phaseEndsAt - Date.now();
+    const m = Math.floor(left / 60000), s = Math.floor((left % 60000) / 1000);
+    $("count").textContent = `${m}:${String(s).padStart(2, "0")}`;
+    $("progress").style.width = `${100 - (left / cd.total) * 100}%`;
+  } else {
+    $("count").textContent = "";
+    $("progress").style.width = "0";
   }
+}
+setInterval(tickCountdown, 500);
 
-  if (s.approval && shownApproval !== s.approval.id) {
-    shownApproval = s.approval.id;
-    $("mTitle").textContent = s.approval.title;
-    $("mDetails").innerHTML = s.approval.details.map((d) => `<li>${esc(d)}</li>`).join("");
-    $("modal").hidden = false;
+/* ── fighters ──────────────────────────────────────── */
+function buildCards() {
+  const box = $("fighters");
+  box.innerHTML = "";
+  if (!S.fighters.length) {
+    box.innerHTML = `<div class="empty">${S.phase === "breeding" ? "🧬 Gemini is designing the next challengers…" : "The reigning champion and its challengers appear here."}</div>`;
+    return;
   }
-  if (!s.approval) { $("modal").hidden = true; shownApproval = null; }
+  S.fighters.forEach((f, i) => {
+    const card = document.createElement("div");
+    card.className = "card";
+    card.dataset.key = f.key;
+    card.style.setProperty("--c", fighterColor(i));
+    card.innerHTML = `
+      <div class="card-top"><span class="role">${f.isChampion ? "👑 Champion" : `Challenger ${i}`}</span><span class="vkey" title="Flagsmith variant key">${esc(f.key)}</span></div>
+      <div class="slot"></div>
+      <div class="card-body">
+        <div class="name">${esc(f.spec.name)}</div>
+        <div class="strategy" title="${esc(f.spec.strategy)}">${esc(f.spec.strategy)}</div>
+        <div class="score"><div class="rate">0.0%<small>sign-ups</small></div><div class="tally">0/0</div></div>
+        <div class="bar"><i></i></div>
+        <div class="personas">${ORDER.map((p) => `<i data-p="${p}" title="${PERSONAS[p].l}"></i>`).join("")}</div>
+        <div class="verdict"></div>
+        <div class="humans" hidden></div>
+      </div>`;
+    card.querySelector(".slot").replaceWith(previewEl(f.html));
+    box.appendChild(card);
+  });
+  requestAnimationFrame(() => fitPreviews(box));
+}
+function updateCards() {
+  const max = Math.max(0.05, ...S.fighters.map(liveRate));
+  S.fighters.forEach((f) => {
+    const card = $("fighters").querySelector(`.card[data-key="${CSS.escape(f.key)}"]`);
+    if (!card) return;
+    card.classList.toggle("champ", f.isChampion);
+    ["defeated", "winner", "defended"].forEach((c) => card.classList.toggle(c, f.status === c));
+    const rate = liveRate(f);
+    card.querySelector(".rate").innerHTML = `${pct(rate)}<small>${f.flagsmith ? "per Flagsmith" : "sign-ups"}</small>`;
+    card.querySelector(".tally").textContent = f.flagsmith ? `${f.flagsmith.conversions}/${f.flagsmith.visitors}` : `${f.signups}/${f.visitors}`;
+    card.querySelector(".bar i").style.width = `${(rate / max) * 100}%`;
+    ORDER.forEach((p) => {
+      const t = f.byPersona[p];
+      const cell = card.querySelector(`.personas i[data-p="${p}"]`);
+      cell.style.background = t && t.visitors ? heatColor(t.signups / t.visitors) : "";
+      cell.title = `${PERSONAS[p].l}: ${t ? `${t.signups}/${t.visitors} signed up` : "no visitors yet"}`;
+    });
+    const v = card.querySelector(".verdict");
+    if (f.flagsmith) {
+      v.classList.remove("shimmer");
+      const fs = f.flagsmith;
+      v.innerHTML = f.isChampion
+        ? `Flagsmith baseline<br><b>${fs.conversions}/${fs.visitors}</b> converted`
+        : fs.chanceToWin == null
+          ? `Flagsmith: <b>${fs.conversions}/${fs.visitors}</b><br>not enough data for a verdict`
+          : `<span class="${fs.chanceToWin >= 0.9 ? "win" : ""}"><b>${pct(fs.chanceToWin)}</b> chance to beat the champion</span>${fs.source === "fallback" ? `<span class="fb" title="The champion had under 5 conversions, so Flagsmith withheld inference. Computed with a two-proportion test on Flagsmith's counts.">FALLBACK</span>` : ""}<br>Flagsmith: <b>${fs.conversions}/${fs.visitors}</b> converted`;
+    } else {
+      v.classList.toggle("shimmer", S.phase === "analysing");
+      v.innerHTML = S.phase === "analysing" ? "Waiting for Flagsmith's verdict…" : "Flagsmith judges after the battle";
+    }
+    const h = card.querySelector(".humans");
+    h.hidden = !f.humans.visitors;
+    h.textContent = `🧑 ${f.humans.visitors} real ${f.humans.visitors === 1 ? "person" : "people"} · ${f.humans.signups} signed up`;
+    const stamp = card.querySelector(".stamp");
+    const want = f.status === "defeated" ? "K.O." : f.status === "winner" ? "WINNER" : f.status === "defended" ? "DEFENDED" : "";
+    if (want && (!stamp || stamp.textContent !== want)) {
+      stamp?.remove();
+      const s = document.createElement("div");
+      s.className = `stamp ${want === "K.O." ? "" : "win"}`;
+      s.textContent = want;
+      card.querySelector(".preview").appendChild(s);
+    } else if (!want && stamp) stamp.remove();
+  });
 }
 
+/* ── crowd: each visitor flies into the page Flagsmith served them ── */
+const queue = [];
+function spawnVisitors() {
+  const fresh = S.thoughts.filter((t) => (t.seq ?? 0) > lastSeq);
+  if (!fresh.length) return;
+  lastSeq = Math.max(...fresh.map((t) => t.seq ?? 0));
+  queue.push(...fresh.slice(-60));
+  if (queue.length > 120) queue.splice(0, queue.length - 120);
+}
+(function launch() {
+  const t = queue.shift();
+  if (t) fly(t);
+  setTimeout(launch, queue.length > 30 ? 22 : 65);
+})();
+function fly(t) {
+  const card = $("fighters").querySelector(`.card[data-key="${CSS.escape(t.fighterKey)}"]`);
+  if (!card || document.hidden) return;
+  const arena = $("arena").getBoundingClientRect();
+  const c = card.getBoundingClientRect();
+  const gate = $("gate").getBoundingClientRect();
+  const sx = gate.left - arena.left + gate.width / 2 + (Math.random() - 0.5) * 160;
+  const sy = gate.top - arena.top + gate.height / 2;
+  const ex = c.left - arena.left + c.width * (0.2 + Math.random() * 0.6);
+  const ey = c.top - arena.top + c.height * 0.25;
+  const dot = document.createElement("div");
+  dot.className = "dot";
+  const col = (PERSONAS[t.persona] || PERSONAS.human).c;
+  dot.style.cssText = `background:${col};color:${col};left:${sx}px;top:${sy}px`;
+  if (t.persona === "human") dot.style.cssText += ";width:16px;height:16px;margin:-8px 0 0 -8px";
+  $("crowd").appendChild(dot);
+  const mx = (sx + ex) / 2, my = Math.min(sy, ey) - 30;
+  const anim = dot.animate(
+    [
+      { transform: "translate(0,0) scale(.5)", opacity: 0 },
+      { transform: `translate(${mx - sx}px,${my - sy}px) scale(1)`, opacity: 1, offset: 0.45 },
+      { transform: `translate(${ex - sx}px,${ey - sy}px) scale(${t.signup ? 1.7 : 0.7})`, opacity: t.signup ? 1 : 0.25 },
+    ],
+    { duration: 800 + Math.random() * 300, easing: "cubic-bezier(.3,.7,.2,1)" },
+  );
+  anim.onfinish = () => {
+    dot.remove();
+    if (!t.signup) return;
+    card.classList.add("hit");
+    setTimeout(() => card.classList.remove("hit"), 260);
+    const p = document.createElement("div");
+    p.className = "plus";
+    p.textContent = t.persona === "human" ? "+1 🧑" : "+1";
+    card.appendChild(p);
+    setTimeout(() => p.remove(), 1000);
+  };
+}
+
+/* ── thoughts feed ─────────────────────────────────── */
+function renderFeed() {
+  const newest = S.thoughts.length ? (S.thoughts[S.thoughts.length - 1].seq ?? S.thoughts.length) : 0;
+  if (newest === feedSeq) return;
+  feedSeq = newest;
+  $("feed").innerHTML = S.thoughts.slice(-14).reverse().map((t) => {
+    const p = PERSONAS[t.persona] || PERSONAS.human;
+    const i = S.fighters.findIndex((x) => x.key === t.fighterKey);
+    const f = S.fighters[i];
+    return `<div class="thought ${t.signup ? "yes" : ""} ${t.persona === "human" ? "human" : ""}">
+      <div class="av">${p.e}</div>
+      <div><small><i style="background:${fighterColor(i)}"></i>${esc(t.personaLabel)} on ${esc(f?.spec.name ?? t.fighterKey)} · ${t.signup ? "✅ signed up" : "❌ left"}${t.likelihood != null ? ` · ${Math.round(t.likelihood)}%` : ""}</small>
+      <p>${esc(t.text)}</p></div></div>`;
+  }).join("") || `<p style="color:var(--dim);margin:0">Every visitor's reaction appears here as they decide.</p>`;
+}
+
+/* ── heatmap ───────────────────────────────────────── */
+function renderHeat() {
+  if (!S.fighters.length) {
+    $("heat").innerHTML = `<tr><td class="na" style="padding:22px;font-family:system-ui">The persona heatmap fills in as visitors arrive.</td></tr>`;
+    return;
+  }
+  const head = `<tr><th></th>${S.fighters.map((f, i) => `<th class="f" style="color:${fighterColor(i)}" title="${esc(f.spec.name)}">${esc(f.spec.name)}</th>`).join("")}</tr>`;
+  const rows = ORDER.map((p) => `<tr><th>${PERSONAS[p].e} ${PERSONAS[p].l}</th>${S.fighters.map((f) => {
+    const t = f.byPersona[p];
+    if (!t || !t.visitors) return `<td class="na">–</td>`;
+    const r = t.signups / t.visitors;
+    return `<td style="background:${heatColor(r)};color:${r > 0.12 ? "#06210f" : "#cfd4e3"}" title="${t.signups}/${t.visitors} signed up">${pct(r, 0)}</td>`;
+  }).join("")}</tr>`).join("");
+  $("heat").innerHTML = head + rows;
+}
+
+/* ── lineage + sparkline ───────────────────────────── */
+function dna(parent, child) {
+  if (!parent) return [];
+  const out = [];
+  if (parent.layout !== child.layout) out.push(`layout ${parent.layout}→${child.layout}`);
+  if (parent.headline !== child.headline) out.push("headline ✎");
+  if (parent.subheadline !== child.subheadline) out.push("subheadline ✎");
+  if (parent.cta !== child.cta) out.push(`CTA “${esc(child.cta)}”`);
+  if (JSON.stringify(parent.bullets) !== JSON.stringify(child.bullets)) out.push(`bullets ${parent.bullets.length}→${child.bullets.length}`);
+  if (parent.theme.accent !== child.theme.accent || parent.theme.background !== child.theme.background)
+    out.push(`palette <i style="display:inline-block;width:8px;height:8px;border-radius:2px;background:${esc(child.theme.accent)}"></i>`);
+  if (!parent.socialProof !== !child.socialProof) out.push(child.socialProof ? "+ social proof" : "− social proof");
+  return out;
+}
+function renderLineage() {
+  if (S.rounds.length === roundsShown) return;
+  roundsShown = S.rounds.length;
+  const box = $("lineage");
+  if (!S.rounds.length) {
+    box.innerHTML = `<div class="empty" style="padding:26px">The family tree of champions grows here.</div>`;
+    $("spark").hidden = true;
+    return;
+  }
+  box.innerHTML = "";
+  const first = S.rounds[0];
+  const genesisRate = first.fighters.find((f) => f.isChampion)?.flagsmith?.rate ?? 0;
+  const nodes = [{ t: "GENESIS", n: first.parent.name, html: first.parentHtml, rate: genesisRate, note: "the page we started with", dna: [] }].concat(
+    S.rounds.map((r) => ({
+      t: `GEN ${r.generation} · ${r.dethroned ? "NEW CHAMPION" : "DEFENDED"}`, n: r.winner, html: r.html, rate: r.winnerRate,
+      note: r.dethroned ? `beat ${r.champion}` : "held the title", dna: r.dethroned ? dna(r.parent, r.spec) : [], url: r.experimentUrl, exp: r.experimentId,
+    })),
+  );
+  nodes.forEach((n, i) => {
+    if (i) {
+      const a = document.createElement("div");
+      a.className = "arrow";
+      a.textContent = "→";
+      box.appendChild(a);
+    }
+    const el = document.createElement("div");
+    el.className = "gen-node";
+    el.innerHTML = `<div class="slot"></div><div class="body"><div class="t">${n.t}</div><div class="n">${esc(n.n)}</div>
+      <div class="r">${pct(n.rate)}</div><div style="color:var(--dim)">${esc(n.note)}${n.url ? ` · <a href="${esc(n.url)}" target="_blank" rel="noopener">exp #${n.exp} ↗</a>` : ""}</div>
+      ${n.dna.length ? `<div class="dna">${n.dna.map((d) => `<span>🧬 ${d}</span>`).join("")}</div>` : ""}</div>`;
+    el.querySelector(".slot").replaceWith(previewEl(n.html));
+    box.appendChild(el);
+  });
+  requestAnimationFrame(() => fitPreviews(box));
+  const pts = nodes.map((n) => n.rate);
+  const W = 600, H = 78, max = Math.max(0.05, ...pts);
+  const xy = pts.map((r, i) => [24 + (i * (W - 48)) / Math.max(1, pts.length - 1), H - 12 - (r / max) * (H - 32)]);
+  $("spark").hidden = false;
+  $("spark").innerHTML = `<div class="rail-title"><span>Champion sign-up rate by generation</span><span style="color:var(--green)">${pct(pts[0])} → ${pct(pts[pts.length - 1])}</span></div>
+    <svg viewBox="0 0 ${W} ${H}" width="100%" height="${H}" role="img" aria-label="Champion sign-up rate by generation">
+      <polyline fill="none" stroke="#3ddc84" stroke-width="2.5" points="${xy.map((p) => p.join(",")).join(" ")}"/>
+      ${xy.map(([x, y], i) => `<circle cx="${x}" cy="${y}" r="4.5" fill="#07080c" stroke="#3ddc84" stroke-width="2.5"/><text x="${x}" y="${y - 10}" fill="#cfd4e3" font-size="11" text-anchor="middle" font-family="monospace">${pct(pts[i])}</text>`).join("")}
+    </svg>`;
+}
+
+/* ── insights ──────────────────────────────────────── */
+function renderInsights() {
+  if (!S.insights) {
+    if (insightsShown) {
+      insightsShown = false;
+      $("insightsSub").textContent = "written when the run ends";
+      $("insights").innerHTML = `<p class="muted">After the final generation, Toggle Wars turns every visitor's reaction into findings your team can act on.</p>`;
+    }
+    return;
+  }
+  if (insightsShown) return;
+  insightsShown = true;
+  $("insightsSub").textContent = "from every visitor in the run";
+  $("insights").innerHTML = `<h3>${esc(S.insights.headline)}</h3><ol>${S.insights.findings.map((f) => `<li>${esc(f)}</li>`).join("")}</ol>`;
+}
+
+/* ── approval modal ────────────────────────────────── */
+function renderApproval() {
+  const a = S.approval;
+  if (!a) { $("modal").hidden = true; shownApproval = null; return; }
+  if (shownApproval === a.id) return;
+  shownApproval = a.id;
+  $("mTitle").textContent = a.title;
+  $("mDetails").innerHTML = a.details.map((d) => `<li>${esc(d)}</li>`).join("");
+  const prev = $("mPreviews");
+  prev.innerHTML = "";
+  (a.previews || []).forEach((p, i) => {
+    const el = document.createElement("div");
+    el.className = "p";
+    el.innerHTML = `<div class="slot"></div><div class="c"><b>${esc(p.name)}</b>${esc(p.strategy)}</div>`;
+    el.querySelector(".slot").replaceWith(previewEl(a.previewsHtml?.[i]));
+    prev.appendChild(el);
+  });
+  $("mCmds").innerHTML = (a.commands || []).map((c) => `<span>$</span> ${esc(c)}`).join("\n");
+  $("mCmds").hidden = !(a.commands || []).length;
+  $("modal").hidden = false;
+  $("approve").disabled = $("reject").disabled = !!S.replay;
+  $("mNote").textContent = S.replay ? "Replay: this request was approved during the recorded run." : "Nothing changes in Flagsmith until you approve. You can also answer in the terminal.";
+  requestAnimationFrame(() => fitPreviews(prev));
+}
 async function answer(ok) {
-  if (!state?.approval) return;
+  if (!S?.approval || S.replay) return;
   $("approve").disabled = $("reject").disabled = true;
-  await fetch("/api/approval", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: state.approval.id, ok }) });
-  $("approve").disabled = $("reject").disabled = false;
+  await fetch("/api/approval", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ id: S.approval.id, ok }) });
 }
 $("approve").onclick = () => answer(true);
 $("reject").onclick = () => answer(false);
 $("startBtn").onclick = () => fetch("/api/start", { method: "POST" });
 
+/* ── verdict moment ────────────────────────────────── */
+function celebrate() {
+  const key = S.phase + ":" + S.generation;
+  if (key === lastPhase) return;
+  lastPhase = key;
+  const winner = S.fighters.find((f) => f.status === "winner");
+  const defended = S.fighters.find((f) => f.status === "defended");
+  let k, h, p, party = false;
+  if (S.phase === "done" && S.rounds.length) {
+    const champ = S.rounds[S.rounds.length - 1];
+    k = "👑 THE CHAMPION SHIPS TO PRODUCTION";
+    h = champ.winner;
+    p = S.insights?.headline || "";
+    party = true;
+  } else if (S.phase === "verdict" && winner) {
+    k = `🏆 GENERATION ${S.generation}`;
+    h = `${winner.spec.name} dethrones the champion`;
+    p = `${pct(winner.flagsmith?.rate ?? 0)} sign-ups · ${pct(winner.flagsmith?.chanceToWin ?? 0)} chance to win`;
+    party = true;
+  } else if (S.phase === "verdict" && defended) {
+    k = `🛡️ GENERATION ${S.generation}`;
+    h = `${defended.spec.name} defends the title`;
+    p = "No challenger reached 90% chance to win";
+  } else return;
+  $("overlayBig").innerHTML = `<div class="k">${esc(k)}</div><h1>${esc(h)}</h1><p>${esc(p)}</p>`;
+  $("overlay").hidden = false;
+  if (party) confetti();
+  clearTimeout(celebrate.t);
+  celebrate.t = setTimeout(() => ($("overlay").hidden = true), 3600);
+}
+function confetti() {
+  const cols = ["#f5c542", "#3ddc84", "#22d3ee", "#c084fc", "#ff8a4c"];
+  for (let i = 0; i < 90; i++) {
+    const c = document.createElement("div");
+    c.className = "confetti";
+    c.style.left = Math.random() * 100 + "vw";
+    c.style.background = cols[i % cols.length];
+    c.style.animationDuration = 1.8 + Math.random() * 1.8 + "s";
+    c.style.animationDelay = Math.random() * 0.5 + "s";
+    document.body.appendChild(c);
+    setTimeout(() => c.remove(), 4300);
+  }
+}
+
+/* ── main render ───────────────────────────────────── */
+function render() {
+  renderHeader();
+  const sig = S.generation + "|" + S.fighters.map((f) => f.key + ":" + f.spec.name).join(",") + "|" + (S.fighters.length ? "" : S.phase);
+  if (sig !== cardsSig) {
+    cardsSig = sig;
+    // Don't replay old arrivals when cards are rebuilt.
+    lastSeq = S.visitSeq ?? 0;
+    queue.length = 0;
+    buildCards();
+  }
+  updateCards();
+  spawnVisitors();
+  renderFeed();
+  renderHeat();
+  renderLineage();
+  renderInsights();
+  renderApproval();
+  celebrate();
+  const log = $("log");
+  log.textContent = S.log.slice(-60).map((l) => `${l.at.slice(11, 19)}  ${l.text}`).join("\n");
+  log.scrollTop = log.scrollHeight;
+}
+
 const es = new EventSource("/events");
-es.onmessage = (e) => { state = JSON.parse(e.data); render(); };
+es.onmessage = (e) => {
+  const next = JSON.parse(e.data);
+  if (S && (next.visitSeq ?? 0) < (S.visitSeq ?? 0)) { lastSeq = 0; roundsShown = -1; insightsShown = false; feedSeq = -1; lastPhase = ""; }
+  S = next;
+  render();
+};
 </script>
 </body>
 </html>
