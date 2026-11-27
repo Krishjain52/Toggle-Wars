@@ -13,7 +13,8 @@
     "preview": "tsx src/preview.ts",
     "doctor": "tsx src/tools/ping-models.ts",
     "ship": "tsx src/tools/ship-champion.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "tsx --test test/*.test.ts"
   },
   "license": "MIT",
   "dependencies": {
