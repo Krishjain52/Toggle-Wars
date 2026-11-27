@@ -89,6 +89,18 @@ export async function shipFlagValue(name: string, value: string, description: st
   }
 }
 
+/** Create (or update) a segment and point the flag's segment override at `value`. */
+export async function shipSegmentOverride(flag: string, segment: string, description: string, rules: unknown, value: string) {
+  const rulesJson = JSON.stringify(rules);
+  try {
+    await cli(["segment", "get", segment, "--json"]);
+    await cli(["segment", "update", segment, "--rules", rulesJson]);
+  } catch {
+    await cli(["segment", "create", segment, "--rules", rulesJson, "--description", description]);
+  }
+  await cli(["flag", "update", flag, "--segment", segment, "--value", value, "--type", "string", "--enable"]);
+}
+
 export async function projectId(): Promise<number> {
   const env = await api<{ project: number }>(`api/v1/environments/${config.flagsmith.environmentKey()}/`);
   return env.project;

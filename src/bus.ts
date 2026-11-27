@@ -60,13 +60,27 @@ export interface Round {
   spec: VariantSpec;
   parent: VariantSpec;
   /** Every fighter's final numbers, for the insights matrix. */
-  fighters: { key: string; name: string; isChampion: boolean; flagsmith?: FlagsmithStats; byPersona: Record<string, Tally> }[];
+  fighters: { key: string; name: string; spec?: VariantSpec; isChampion: boolean; flagsmith?: FlagsmithStats; byPersona: Record<string, Tally> }[];
+}
+
+export interface SegmentProposal {
+  persona: string;
+  label: string;
+  page: VariantSpec;
+  pageRate: number;
+  pageN: string;
+  championRate: number;
+  championN: string;
+  chanceToWin: number;
+  segment: string;
 }
 
 export interface Insights {
   headline: string;
   findings: string[];
-  perPersona: { persona: string; label: string; bestFighter: string; rate: number }[];
+  segments?: SegmentProposal[];
+  shippedSegments?: boolean;
+  perPersona: { persona: string; label: string; bestFighter: string; rate: number; signups: number; visitors: number }[];
 }
 
 export type Phase =

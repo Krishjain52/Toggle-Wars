@@ -126,7 +126,7 @@
   @media (max-width:1000px){.two{grid-template-columns:1fr}}
   .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px}
   .heat{width:100%;border-collapse:separate;border-spacing:3px;font-size:12px}
-  .heat th{font:600 10.5px/1.2 var(--mono);color:var(--dim);text-align:left;font-weight:600;padding:2px 4px}
+  .heat th{font:600 10.5px/1.2 var(--mono);color:var(--dim);text-align:left;font-weight:600;padding:2px 4px;white-space:nowrap}
   .heat th.f{text-align:center;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .heat td{text-align:center;border-radius:6px;padding:7px 2px;font:600 11.5px/1 var(--mono);color:#0b0d12;min-width:54px}
   .heat td.na{color:var(--faint);background:var(--panel2)!important}
@@ -149,7 +149,10 @@
   .thought.yes{border-left-color:var(--green)}
   .thought.human{border-left-color:#ffb347;background:#21190f}
   .thought .av{width:28px;height:28px;border-radius:8px;display:grid;place-items:center;background:#0b0e15;font-size:15px}
-  .thought small{display:flex;gap:6px;align-items:center;color:var(--dim);font-size:11px;margin-bottom:2px;white-space:nowrap;overflow:hidden}
+  .thought > div:last-child{min-width:0}
+  .thought small{display:flex;gap:6px;align-items:center;color:var(--dim);font-size:11px;margin-bottom:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .thought small .who{overflow:hidden;text-overflow:ellipsis}
+  .thought small .res{margin-left:auto;flex:none;font-family:var(--mono)}
   .thought small i{width:7px;height:7px;border-radius:50%;flex:none}
   .thought p{margin:0;font-size:12.5px;color:#dfe3ee}
   @keyframes in{from{transform:translateY(-6px);opacity:0}}
@@ -504,7 +507,7 @@ function renderFeed() {
     const f = S.fighters[i];
     return `<div class="thought ${t.signup ? "yes" : ""} ${t.persona === "human" ? "human" : ""}">
       <div class="av">${p.e}</div>
-      <div><small><i style="background:${fighterColor(i)}"></i>${esc(t.personaLabel)} on ${esc(f?.spec.name ?? t.fighterKey)} · ${t.signup ? "✅ signed up" : "❌ left"}${t.likelihood != null ? ` · ${Math.round(t.likelihood)}%` : ""}</small>
+      <div><small title="${esc(t.personaLabel)} on ${esc(f?.spec.name ?? t.fighterKey)}"><i style="background:${fighterColor(i)}"></i><span class="who">${esc(t.personaLabel)} → ${esc(f?.spec.name ?? t.fighterKey)}</span><span class="res">${t.signup ? "✅" : "❌"}${t.likelihood != null ? ` ${Math.round(t.likelihood)}%` : ""}</span></small>
       <p>${esc(t.text)}</p></div></div>`;
   }).join("") || `<p style="color:var(--dim);margin:0">Every visitor's reaction appears here as they decide.</p>`;
 }

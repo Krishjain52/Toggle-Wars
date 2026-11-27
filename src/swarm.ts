@@ -24,7 +24,7 @@ export async function runSwarm(sdk: Flagsmith, flagName: string, visitors: Visit
   let waiting = visitors;
   for (let round = 0; waiting.length && round < 5; round++) {
     if (round) await new Promise((r) => setTimeout(r, 5000));
-    const results = await pool(waiting, 10, async (v) => ({ visitor: v, exposure: await expose(sdk, flagName, v.id) }));
+    const results = await pool(waiting, 10, async (v) => ({ visitor: v, exposure: await expose(sdk, flagName, v.id, { visitor_type: v.archetype.id }) }));
     enrolled.push(...results.filter((e) => e.exposure.inExperiment));
     waiting = results.filter((e) => !e.exposure.inExperiment).map((e) => e.visitor);
   }

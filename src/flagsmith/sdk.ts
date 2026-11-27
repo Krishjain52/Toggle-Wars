@@ -26,8 +26,8 @@ export interface Exposure {
 
 type ExperimentAware = { value: unknown; variant?: string; experiment?: { id?: number; inExperiment?: boolean } };
 
-export async function expose(sdk: Flagsmith, flagName: string, visitorId: string): Promise<Exposure> {
-  const f = (await sdk.getExperimentFlag(flagName, visitorId)) as ExperimentAware;
+export async function expose(sdk: Flagsmith, flagName: string, visitorId: string, traits?: Record<string, string>): Promise<Exposure> {
+  const f = (await sdk.getExperimentFlag(flagName, visitorId, traits)) as ExperimentAware;
   return {
     variantKey: f.variant ?? "control",
     value: String(f.value ?? ""),

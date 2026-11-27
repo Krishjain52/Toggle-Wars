@@ -7,6 +7,7 @@ import { createSdk, SIGNUP_EVENT, waitUntilLive } from "./flagsmith/sdk.js";
 import { buildInsights } from "./insights.js";
 import { ARCHETYPES, spawnVisitors } from "./personas.js";
 import { GENESIS, PRODUCT } from "./seed.js";
+import { proposeSegments, segmentRules } from "./segments.js";
 import { fallbackInference } from "./stats.js";
 import { runSwarm } from "./swarm.js";
 import type { VariantSpec } from "./variant.js";
@@ -219,7 +220,7 @@ export async function runArena() {
         experimentUrl: url,
         spec: crowned.spec,
         parent: champion,
-        fighters: bus.state.fighters.map((f) => ({ key: f.key, name: f.spec.name, isChampion: f.isChampion, flagsmith: f.flagsmith, byPersona: f.byPersona })),
+        fighters: bus.state.fighters.map((f) => ({ key: f.key, name: f.spec.name, spec: f.spec, isChampion: f.isChampion, flagsmith: f.flagsmith, byPersona: f.byPersona })),
       };
       bus.update({ rounds: [...bus.state.rounds, round] });
       feedback = feedbackFrom(bus.state.fighters);
@@ -229,28 +230,43 @@ export async function runArena() {
 
     // 7. What did we learn?
     bus.phase("shipping", "Writing the insights report…");
-    bus.update({ insights: await buildInsights(bus.state.rounds) });
+    const insights = await buildInsights(bus.state.rounds);
+    const segments = proposeSegments(bus.state.rounds, champion);
+    bus.update({ insights: { ...insights, segments } });
+    if (segments.length) bus.log(`🎯 ${segments.length} visitor types prefer a different page: proposing Flagsmith segments`);
 
     // 8. Ship the champion to the production flag and archive the battle flags.
     const shipOk = await approve(
       `Ship "${champion.name}" to production`,
       [
         `Set flag "${PRODUCTION_FLAG}" to the champion page: the live landing page changes instantly, no deploy`,
+        ...segments.map((g) => `🎯 Segment "${g.segment}" (trait visitor_type = ${g.persona}): ${g.label}s get "${g.page.name}" (${g.pageN} vs ${g.championN} on the champion, ${pct(g.chanceToWin)} chance to win)`),
         `Archive ${flags.length} battle flags (their experiments stay browsable in Flagsmith)`,
       ],
       {
         commands: [
           `flagsmith flag update ${PRODUCTION_FLAG} --value <champion page JSON> --type string --enable`,
+          ...segments.flatMap((g) => [
+            `flagsmith segment create ${g.segment} --rules '${JSON.stringify(segmentRules(g.persona))}'`,
+            `flagsmith flag update ${PRODUCTION_FLAG} --segment ${g.segment} --value <"${g.page.name}" page JSON>`,
+          ]),
           ...flags.map((f) => `flagsmith feature update ${f} --archive`),
         ],
-        previews: [champion],
+        previews: [champion, ...segments.map((g) => g.page)],
       },
     );
     if (shipOk) {
       bus.phase("shipping", `Shipping ${champion.name}…`);
       await fs.shipFlagValue(PRODUCTION_FLAG, JSON.stringify(champion), "Live landing page, owned by Toggle Wars");
+      for (const g of segments) {
+        await fs
+          .shipSegmentOverride(PRODUCTION_FLAG, g.segment, `Toggle Wars: visitors whose visitor_type is ${g.persona}`, segmentRules(g.persona), JSON.stringify(g.page))
+          .then(() => bus.log(`🎯 ${g.label}s now get "${g.page.name}" via Flagsmith segment ${g.segment}`))
+          .catch((e) => bus.log(`Could not ship segment ${g.segment}: ${e.message}`));
+      }
       for (const f of flags) await fs.archiveFeature(f).catch((e) => bus.log(`Could not archive ${f}: ${e.message}`));
-      bus.phase("done", `👑 ${champion.name} is live on "${PRODUCTION_FLAG}". ${flags.length} battle flags archived.`);
+      bus.update({ insights: { ...bus.state.insights!, shippedSegments: segments.length > 0 } });
+      bus.phase("done", `👑 ${champion.name} is live on "${PRODUCTION_FLAG}"${segments.length ? ` with ${segments.length} personalised segment${segments.length > 1 ? "s" : ""}` : ""}. ${flags.length} battle flags archived.`);
     } else {
       bus.phase("done", `Champion "${champion.name}" not shipped (rejected by the operator).`);
     }
