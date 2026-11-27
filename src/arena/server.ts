@@ -9,6 +9,7 @@ import { config } from "../config.js";
 import { PRODUCTION_FLAG, runArena } from "../evolve.js";
 import { createSdk } from "../flagsmith/sdk.js";
 import { playRun } from "../replay.js";
+import { ARCHETYPES } from "../personas.js";
 import { GENESIS, PRODUCT } from "../seed.js";
 import { parseVariant, renderHtml } from "../variant.js";
 
@@ -161,18 +162,42 @@ const server = createServer(async (req, res) => {
         return void res.writeHead(204).end();
       }
       case "/live": {
-        // The production landing page: reads the flag on every request.
+        // The production landing page: Flagsmith evaluates the flag on every request.
+        // ?as=<visitor type> evaluates it for an identity with that trait, so
+        // segment overrides shipped by Toggle Wars become visible.
+        const as = url.searchParams.get("as");
+        const persona = ARCHETYPES.find((a) => a.id === as) ?? null;
         let spec = GENESIS;
+        let personalised = false;
         if (liveSdk) {
-          const flags = await liveSdk.getEnvironmentFlags();
-          spec = parseVariant(flags.getFeatureValue(PRODUCTION_FLAG)) ?? GENESIS;
+          const base = parseVariant((await liveSdk.getEnvironmentFlags()).getFeatureValue(PRODUCTION_FLAG)) ?? GENESIS;
+          spec = base;
+          if (persona) {
+            const flags = await liveSdk.getIdentityFlags(`live-viewer-${persona.id}`, { visitor_type: persona.id });
+            spec = parseVariant(flags.getFeatureValue(PRODUCTION_FLAG)) ?? base;
+            personalised = spec.name !== base.name;
+          }
         } else if (bus.state.rounds.length) {
           spec = bus.state.rounds[bus.state.rounds.length - 1]!.spec;
+          const seg = persona && bus.state.insights?.segments?.find((g) => g.persona === persona.id);
+          if (seg) { spec = seg.page; personalised = true; }
         }
+        const segs = new Set((bus.state.insights?.segments ?? []).map((g) => g.persona));
+        const chip = (id: string | null, label: string) =>
+          `<a href="/live${id ? `?as=${id}` : ""}" style="padding:6px 10px;border-radius:999px;text-decoration:none;font:600 12px/1 system-ui;white-space:nowrap;` +
+          `${(as ?? null) === id ? "background:#f5c542;color:#111" : "background:#1a1f2b;color:#cfd4e3"}">${label}${id && segs.has(id) ? " 🎯" : ""}</a>`;
+        const switcher =
+          `<div style="position:fixed;left:50%;bottom:16px;transform:translateX(-50%);z-index:9;max-width:calc(100vw - 24px);overflow-x:auto;` +
+          `display:flex;gap:6px;align-items:center;padding:8px;border-radius:999px;background:rgba(11,13,18,.92);box-shadow:0 10px 40px rgba(0,0,0,.4)">` +
+          `<span style="color:#8c93a8;font:600 11px/1 ui-monospace,monospace;padding:0 6px;white-space:nowrap">VIEW AS</span>` +
+          chip(null, "Everyone") + ARCHETYPES.map((a) => chip(a.id, a.label)).join("") + `</div>` +
+          (personalised
+            ? `<div style="position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:9;padding:8px 14px;border-radius:999px;background:#3ddc84;color:#06210f;font:700 13px/1.2 system-ui;text-align:center;max-width:calc(100vw - 24px)">🎯 Personalised by Flagsmith segment for ${persona!.label}s: “${spec.name}”</div>`
+            : "");
         return void res.writeHead(200, { "content-type": "text/html; charset=utf-8" }).end(
           `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">` +
             `<link rel="icon" href="/favicon.svg"><title>${PRODUCT.name}</title>` +
-            `<body style="margin:0;min-height:100vh;background:${spec.theme.background}">${renderHtml(spec)}`,
+            `<body style="margin:0;min-height:100vh;background:${spec.theme.background}">${renderHtml(spec)}${switcher}`,
         );
       }
     }

@@ -91,7 +91,7 @@
   .name{font:700 18px/1.15 var(--display);letter-spacing:-.01em;margin-bottom:4px}
   .strategy{color:var(--dim);font-size:12.5px;line-height:1.4;min-height:35px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
   .score{display:flex;align-items:baseline;justify-content:space-between;margin:12px 0 6px}
-  .rate{font:700 30px/1 var(--display);font-variant-numeric:tabular-nums}
+  .rate{font:700 30px/1 var(--display);font-variant-numeric:tabular-nums;white-space:nowrap}
   .rate small{font-size:13px;color:var(--dim);font-weight:500;margin-left:4px}
   .tally{font:500 12px/1 var(--mono);color:var(--dim)}
   .bar{height:8px;border-radius:99px;background:var(--panel2);overflow:hidden}
@@ -110,7 +110,7 @@
 
   /* ── lineage ────────────────────────────────────────── */
   .lineage{display:flex;gap:0;align-items:stretch;overflow-x:auto;padding-bottom:6px}
-  .gen-node{flex:none;width:230px;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
+  .gen-node{flex:1 1 200px;min-width:180px;max-width:280px;background:var(--panel);border:1px solid var(--line);border-radius:14px;overflow:hidden}
   .gen-node .preview{aspect-ratio:16/10}
   .gen-node .body{padding:10px 12px 12px;font-size:12.5px}
   .gen-node .t{font:600 10.5px/1 var(--mono);letter-spacing:.08em;color:var(--dim);text-transform:uppercase;margin-bottom:6px}
@@ -118,22 +118,28 @@
   .gen-node .r{font:700 20px/1 var(--display);color:var(--green);margin:6px 0}
   .dna{display:flex;flex-wrap:wrap;gap:4px;margin-top:6px}
   .dna span{font:500 10.5px/1 var(--mono);padding:4px 6px;border-radius:6px;background:var(--panel2);color:#b9c0d4;border:1px solid var(--line)}
-  .arrow{flex:none;width:44px;display:grid;place-items:center;color:var(--faint);font-size:20px}
+  .arrow{flex:none;width:32px;display:grid;place-items:center;color:var(--faint);font-size:20px}
   .spark{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-top:12px}
 
   /* ── heatmap + insights ─────────────────────────────── */
   .two{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:14px}
   @media (max-width:1000px){.two{grid-template-columns:1fr}}
   .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px}
-  .heat{width:100%;border-collapse:separate;border-spacing:3px;font-size:12px}
+  .heat{width:100%;border-collapse:separate;border-spacing:3px;font-size:12px;table-layout:fixed}
+  .heat th:first-child{width:34%}
   .heat th{font:600 10.5px/1.2 var(--mono);color:var(--dim);text-align:left;font-weight:600;padding:2px 4px;white-space:nowrap}
-  .heat th.f{text-align:center;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-  .heat td{text-align:center;border-radius:6px;padding:7px 2px;font:600 11.5px/1 var(--mono);color:#0b0d12;min-width:54px}
+  .heat th.f{text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .heat th:not(.f){overflow:hidden;text-overflow:ellipsis}
+  .heat td{text-align:center;border-radius:6px;padding:7px 2px;font:600 11.5px/1 var(--mono);color:#0b0d12}
   .heat td.na{color:var(--faint);background:var(--panel2)!important}
   .insights h3{font:700 19px/1.25 var(--display);margin:2px 0 10px}
   .insights ol{margin:0;padding-left:18px;color:#cfd4e3}
   .insights li{margin:7px 0}
   .insights .muted{color:var(--dim)}
+  .seg{display:block;padding:9px 11px;border-radius:10px;background:var(--panel2);border:1px solid var(--line);margin-top:6px;color:var(--fg)}
+  .seg:hover{border-color:var(--green);text-decoration:none}
+  .seg small{display:block;color:var(--dim);margin-top:3px;font-size:11.5px}
+  .seg code{font-family:var(--mono);color:#9fe6c1}
 
   /* ── right rail ─────────────────────────────────────── */
   aside{display:flex;flex-direction:column;gap:14px;position:sticky;top:12px}
@@ -292,7 +298,7 @@ let S = null;
 let cardsSig = "";
 let lastSeq = 0;
 let roundsShown = -1;
-let insightsShown = false;
+let insightsShown = "";
 let lastPhase = "";
 let lastGen = 0;
 let shownApproval = null;
@@ -407,7 +413,7 @@ function updateCards() {
     card.classList.toggle("champ", f.isChampion);
     ["defeated", "winner", "defended"].forEach((c) => card.classList.toggle(c, f.status === c));
     const rate = liveRate(f);
-    card.querySelector(".rate").innerHTML = `${pct(rate)}<small>${f.flagsmith ? "per Flagsmith" : "sign-ups"}</small>`;
+    card.querySelector(".rate").innerHTML = `${pct(rate)}<small>${f.flagsmith ? "Flagsmith" : "live"}</small>`;
     card.querySelector(".tally").textContent = f.flagsmith ? `${f.flagsmith.conversions}/${f.flagsmith.visitors}` : `${f.signups}/${f.visitors}`;
     card.querySelector(".bar i").style.width = `${(rate / max) * 100}%`;
     ORDER.forEach((p) => {
@@ -591,16 +597,23 @@ function renderLineage() {
 function renderInsights() {
   if (!S.insights) {
     if (insightsShown) {
-      insightsShown = false;
+      insightsShown = "";
       $("insightsSub").textContent = "written when the run ends";
       $("insights").innerHTML = `<p class="muted">After the final generation, Toggle Wars turns every visitor's reaction into findings your team can act on.</p>`;
     }
     return;
   }
-  if (insightsShown) return;
-  insightsShown = true;
+  const sig = JSON.stringify([S.insights.headline, S.insights.segments?.length, S.insights.shippedSegments]);
+  if (insightsShown === sig) return;
+  insightsShown = sig;
+  const segs = S.insights.segments || [];
   $("insightsSub").textContent = "from every visitor in the run";
-  $("insights").innerHTML = `<h3>${esc(S.insights.headline)}</h3><ol>${S.insights.findings.map((f) => `<li>${esc(f)}</li>`).join("")}</ol>`;
+  $("insights").innerHTML = `<h3>${esc(S.insights.headline)}</h3><ol>${S.insights.findings.map((f) => `<li>${esc(f)}</li>`).join("")}</ol>` +
+    (segs.length
+      ? `<div class="segs"><div class="rail-title" style="margin:14px 0 8px"><span>🎯 Personalised champions${S.insights.shippedSegments ? " · live in Flagsmith" : ""}</span></div>` +
+        segs.map((g) => `<a class="seg" href="/live?as=${esc(g.persona)}" target="_blank" rel="noopener"><span>${PERSONAS[g.persona]?.e ?? "🎯"} <b>${esc(g.label)}s</b> → “${esc(g.page.name)}”</span>
+          <small>${esc(g.pageN)} vs ${esc(g.championN)} on the champion · ${pct(g.chanceToWin)} chance to win · segment <code>${esc(g.segment)}</code></small></a>`).join("") + `</div>`
+      : `<p class="muted" style="margin-top:12px">No visitor type clearly preferred a different page, so everyone gets the champion.</p>`);
 }
 
 /* ── approval modal ────────────────────────────────── */
@@ -707,7 +720,7 @@ function render() {
 const es = new EventSource("/events");
 es.onmessage = (e) => {
   const next = JSON.parse(e.data);
-  if (S && (next.visitSeq ?? 0) < (S.visitSeq ?? 0)) { lastSeq = 0; roundsShown = -1; insightsShown = false; feedSeq = -1; lastPhase = ""; }
+  if (S && (next.visitSeq ?? 0) < (S.visitSeq ?? 0)) { lastSeq = 0; roundsShown = -1; insightsShown = ""; feedSeq = -1; lastPhase = ""; }
   S = next;
   render();
 };
