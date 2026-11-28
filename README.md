@@ -4,6 +4,8 @@
 
 An AI agent breeds challenger versions of your page. A crowd of synthetic visitors *looks at real screenshots* of them inside a live **Flagsmith Experiment**, real people can join the same experiment from their phones, Flagsmith's Bayesian engine crowns the winner, and the winner's offspring fight again in the next generation. At the end, the champion ships to production through a feature flag (no deploy), and you get a report on which message works for which kind of visitor.
 
+![The Toggle Wars arena at the end of a real run: The Speed Demon defended its title, with Flagsmith's numbers on every card](docs/arena.png)
+
 > Built for the WeMakeDevs × Flagsmith **Toggle Wars** hackathon, Track 02: *AI Agents and Feature Flags*.
 
 ### ▶ Watch a real run in two minutes, no API keys needed
@@ -15,6 +17,12 @@ npm run replay          # open http://localhost:4040 and press "Play recorded ru
 ```
 
 Every live run is recorded event by event. [`runs/demo.jsonl`](runs/demo.jsonl) is a real 3-generation run against Flagsmith Cloud, replayed at 8× speed.
+
+| Mid-battle: 800 visitors judging screenshots | After the run: segment override served by Flagsmith |
+|---|---|
+| ![Battle](docs/battle.png) | ![Personalised page for CS students](docs/segment.png) |
+
+**Result of that run:** the original buzzword page converted **1.5%**. Generation 1's *The Speed Demon* took the title at **18.8%** (100% chance to win, by Flagsmith) and defended it in generations 2 and 3. The agent then found two visitor types that clearly preferred a different page and shipped them as Flagsmith segments: CS students → *The Free Tier Hook*, product managers → *The Friction Killer*.
 
 ---
 
